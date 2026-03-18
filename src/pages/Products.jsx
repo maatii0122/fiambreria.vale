@@ -10,11 +10,27 @@ import { loadPromotions } from '@/lib/promotions'
 const INITIAL_FORM = {
   barcode: '', name: '', category: 'Otros', unit: 'unidad',
   current_stock: 0, min_stock: 0, purchase_price: 0, sale_price: 0,
+  expiration_date: '',
   active: true, allow_negative_stock: true,
 }
 
 const CATEGORIES = ['Fiambres', 'Quesos', 'Lácteos', 'Bebidas', 'Panificados', 'Verdulería', 'Limpieza', 'Otros']
 const UNITS = ['kg', 'g', 'unidad', 'litro', 'ml', 'docena', 'paquete']
+const formatExpiry = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return '-'
+  return date.toLocaleDateString('es-AR')
+}
+
+const daysUntil = (value) => {
+  if (!value) return null
+  const now = new Date()
+  const target = new Date(value)
+  if (Number.isNaN(target.valueOf())) return null
+  const diff = Math.ceil((target - now) / 86400000)
+  return diff
+}
 
 export default function Products() {
   const queryClient = useQueryClient()
@@ -97,6 +113,7 @@ export default function Products() {
         min_stock: product.min_stock || 0,
         purchase_price: product.purchase_price || 0,
         sale_price: product.sale_price || 0,
+        expiration_date: product.expiration_date || '',
         active: product.active ?? true,
         allow_negative_stock: product.allow_negative_stock ?? true,
       })
@@ -110,7 +127,14 @@ export default function Products() {
 
   const handleSave = async (e) => {
     e.preventDefault()
-    const payload = { ...form, current_stock: parseFloat(form.current_stock), min_stock: parseFloat(form.min_stock), purchase_price: parseFloat(form.purchase_price), sale_price: parseFloat(form.sale_price) }
+    const payload = {
+      ...form,
+      current_stock: parseFloat(form.current_stock),
+      min_stock: parseFloat(form.min_stock),
+      purchase_price: parseFloat(form.purchase_price),
+      sale_price: parseFloat(form.sale_price),
+      expiration_date: form.expiration_date || null,
+    }
     if (editingProduct) {
       await mutateUpdate.mutateAsync({ id: editingProduct.id, payload })
     } else {
@@ -130,18 +154,19 @@ export default function Products() {
     if (!file) return
     try {
       const rows = await importFromXlsx(file)
-    const toCreate = rows.filter(r => r.name && r.sale_price).map(r => ({
-      barcode: String(r.barcode || ''),
-      name: String(r.name),
-      category: String(r.category || 'Otros'),
-      unit: String(r.unit || 'unidad'),
-      current_stock: parseFloat(r.current_stock) || 0,
-      min_stock: parseFloat(r.min_stock) || 0,
-      purchase_price: parseFloat(r.purchase_price) || 0,
-      sale_price: parseFloat(r.sale_price),
-      active: true,
-      allow_negative_stock: true,
-    }))
+      const toCreate = rows.filter(r => r.name && r.sale_price).map(r => ({
+        barcode: String(r.barcode || ''),
+        name: String(r.name),
+        category: String(r.category || 'Otros'),
+        unit: String(r.unit || 'unidad'),
+        current_stock: parseFloat(r.current_stock) || 0,
+        min_stock: parseFloat(r.min_stock) || 0,
+        purchase_price: parseFloat(r.purchase_price) || 0,
+        sale_price: parseFloat(r.sale_price),
+        expiration_date: r.expiration_date || r.Date_vto || null,
+        active: true,
+        allow_negative_stock: true,
+      }))
     if (!toCreate.length) { toast.error('No se encontraron filas válidas'); return }
     const { error } = await supabase.from('products').upsert(toCreate, { onConflict: 'barcode' })
     if (error) throw error
@@ -269,16 +294,17 @@ export default function Products() {
       <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
-              <th className="px-4 py-3">Producto</th>
-              <th className="px-4 py-3">Categoría</th>
-              <th className="px-4 py-3">Stock</th>
-              <th className="px-4 py-3">P.Compra</th>
-              <th className="px-4 py-3">P.Venta</th>
-              <th className="px-4 py-3">Margen</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3 text-right">Acciones</th>
-            </tr>
+              <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+                <th className="px-4 py-3">Producto</th>
+                <th className="px-4 py-3">Categoría</th>
+                <th className="px-4 py-3">Stock</th>
+                <th className="px-4 py-3">P.Compra</th>
+                <th className="px-4 py-3">P.Venta</th>
+                <th className="px-4 py-3">Vence</th>
+                <th className="px-4 py-3">Margen</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-right">Acciones</th>
+              </tr>
           </thead>
           <tbody>
             {filteredProducts.map(product => {
@@ -292,11 +318,23 @@ export default function Products() {
                     <p className="text-xs text-gray-500">{product.barcode || 'Sin código'}</p>
                   </td>
                   <td className="px-4 py-3">{product.category}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.current_stock <= product.min_stock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                      {product.current_stock} / {product.min_stock}
-                    </span>
-                  </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.current_stock <= product.min_stock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                    {product.current_stock} / {product.min_stock}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const days = daysUntil(product.expiration_date)
+                    const label = formatExpiry(product.expiration_date)
+                    const tone = days === null ? 'text-gray-500' : days < 0 ? 'text-red-600' : days <= 7 ? 'text-amber-600' : 'text-emerald-700'
+                    return (
+                      <span className={`text-xs font-semibold ${tone}`}>
+                        {label} {days !== null ? `(${days < 0 ? 'vencido' : `en ${days}d`})` : ''}
+                      </span>
+                    )
+                  })()}
+                </td>
                   <td className="px-4 py-3">{fmtMoney(product.purchase_price || 0)}</td>
                   <td className="px-4 py-3">{fmtMoney(product.sale_price || 0)}</td>
                   <td className="px-4 py-3">{margin.toFixed(1)}%</td>
@@ -380,6 +418,13 @@ export default function Products() {
                 Precio venta
                 <input type="number" value={form.sale_price} onChange={e => setForm(prev => ({ ...prev, sale_price: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" required />
               </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs text-gray-500">
+                Fecha de vencimiento
+                <input type="date" value={form.expiration_date} onChange={e => setForm(prev => ({ ...prev, expiration_date: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
+              </label>
+              <div />
             </div>
             <div className="flex gap-3 items-center">
               <label className="flex items-center gap-2 text-sm">
