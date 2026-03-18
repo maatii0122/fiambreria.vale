@@ -1,0 +1,407 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
+import { exportToXlsx, importFromXlsx, PRODUCT_COLUMNS } from '@/lib/xlsxUtils'
+import { fmtMoney } from '@/components/argentina'
+import { PencilLine, Trash2 } from 'lucide-react'
+import { loadPromotions } from '@/lib/promotions'
+
+const INITIAL_FORM = {
+  barcode: '', name: '', category: 'Otros', unit: 'unidad',
+  current_stock: 0, min_stock: 0, purchase_price: 0, sale_price: 0,
+  active: true, allow_negative_stock: true,
+}
+
+const CATEGORIES = ['Fiambres', 'Quesos', 'Lácteos', 'Bebidas', 'Panificados', 'Verdulería', 'Limpieza', 'Otros']
+const UNITS = ['kg', 'g', 'unidad', 'litro', 'ml', 'docena', 'paquete']
+
+export default function Products() {
+  const queryClient = useQueryClient()
+  const fileInputRef = useRef(null)
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data } = await supabase.from('products').select('*').order('name')
+      return data || []
+    },
+    staleTime: 1000 * 60,
+  })
+
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [form, setForm] = useState(INITIAL_FORM)
+  const [promotions, setPromotions] = useState(() => loadPromotions())
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesSearch = [product.name, product.barcode].some(value =>
+        String(value || '').toLowerCase().includes(search.toLowerCase())
+      )
+      const matchesCategory = category ? product.category === category : true
+      return matchesSearch && matchesCategory
+    })
+  }, [products, search, category])
+
+  const promotionsWithDetails = useMemo(() => promotions.map(promo => ({
+    ...promo,
+    items: (promo.productIds || []).map(id => products.find(product => product.id === id)).filter(Boolean),
+  })), [promotions, products])
+
+  const mutateCreate = useMutation({
+    mutationFn: async (payload) => {
+      const { error } = await supabase.from('products').insert(payload)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Producto creado')
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+    onError: () => toast.error('Error guardando producto'),
+  })
+
+  const mutateUpdate = useMutation({
+    mutationFn: async ({ id, payload }) => {
+      const { error } = await supabase.from('products').update(payload).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Producto actualizado')
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+    onError: () => toast.error('Error actualizando producto'),
+  })
+
+  const mutateDelete = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Producto eliminado')
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+    onError: () => toast.error('No se pudo eliminar'),
+  })
+
+  const openModal = (product = null) => {
+    if (product) {
+      setForm({
+        barcode: product.barcode || '',
+        name: product.name || '',
+        category: product.category || 'Otros',
+        unit: product.unit || 'unidad',
+        current_stock: product.current_stock || 0,
+        min_stock: product.min_stock || 0,
+        purchase_price: product.purchase_price || 0,
+        sale_price: product.sale_price || 0,
+        active: product.active ?? true,
+        allow_negative_stock: product.allow_negative_stock ?? true,
+      })
+      setEditingProduct(product)
+    } else {
+      setForm(INITIAL_FORM)
+      setEditingProduct(null)
+    }
+    setShowModal(true)
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    const payload = { ...form, current_stock: parseFloat(form.current_stock), min_stock: parseFloat(form.min_stock), purchase_price: parseFloat(form.purchase_price), sale_price: parseFloat(form.sale_price) }
+    if (editingProduct) {
+      await mutateUpdate.mutateAsync({ id: editingProduct.id, payload })
+    } else {
+      await mutateCreate.mutateAsync(payload)
+    }
+    setShowModal(false)
+  }
+
+  const handleDelete = (product) => {
+    if (window.confirm(`Eliminar ${product.name}?`)) {
+      mutateDelete.mutate(product.id)
+    }
+  }
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const rows = await importFromXlsx(file)
+    const toCreate = rows.filter(r => r.name && r.sale_price).map(r => ({
+      barcode: String(r.barcode || ''),
+      name: String(r.name),
+      category: String(r.category || 'Otros'),
+      unit: String(r.unit || 'unidad'),
+      current_stock: parseFloat(r.current_stock) || 0,
+      min_stock: parseFloat(r.min_stock) || 0,
+      purchase_price: parseFloat(r.purchase_price) || 0,
+      sale_price: parseFloat(r.sale_price),
+      active: true,
+      allow_negative_stock: true,
+    }))
+    if (!toCreate.length) { toast.error('No se encontraron filas válidas'); return }
+    const { error } = await supabase.from('products').upsert(toCreate, { onConflict: 'barcode' })
+    if (error) throw error
+    queryClient.invalidateQueries({ queryKey: ['products'] })
+    toast.success(`${toCreate.length} productos importados / actualizados`)
+  } catch (err) {
+    toast.error('Error al importar: ' + err.message)
+  } finally {
+      event.target.value = ''
+    }
+  }
+
+  const handleExport = () => {
+    const mapped = products.map(p => ({ ...p, active: p.active ? 'Sí' : 'No' }))
+    const date = new Date().toISOString().split('T')[0]
+    exportToXlsx(mapped, PRODUCT_COLUMNS, `productos_${date}`, 'Productos', {
+      title: 'Fiambrerías Vale — Productos',
+      subtitle: `Exportado el ${date}`,
+    })
+  }
+
+  useEffect(() => {
+    const refresh = () => setPromotions(loadPromotions())
+    const storageHandler = (event) => {
+      if (event.key === 'fiambrerias-promotions') refresh()
+    }
+    window.addEventListener('fiambrerias-promotions', refresh)
+    window.addEventListener('storage', storageHandler)
+    return () => {
+      window.removeEventListener('fiambrerias-promotions', refresh)
+      window.removeEventListener('storage', storageHandler)
+    }
+  }, [])
+
+  const handleExportTemplate = () => {
+    exportToXlsx([
+      {
+        barcode: '123456',
+        name: 'Ejemplo de producto',
+        category: 'Fiambres',
+        unit: 'unidad',
+        current_stock: 10,
+        min_stock: 2,
+        purchase_price: 100,
+        sale_price: 180,
+        active: 'Sí',
+      },
+    ], PRODUCT_COLUMNS, 'plantilla_productos', 'Productos', {
+      title: 'Plantilla de importación',
+      subtitle: 'Llená la tabla y exportála como XLSX',
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Productos</p>
+          <h1 className="text-3xl font-bold">Gestión de inventario</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportTemplate}
+            className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold"
+          >
+            Plantilla Excel
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold"
+          >
+            Importar Excel
+          </button>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
+          >
+            Exportar Excel
+          </button>
+          <button
+            onClick={() => openModal()}
+            className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold"
+          >
+            Nuevo producto
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por nombre o código"
+          className="flex-1 border border-gray-200 rounded-full px-4 py-2"
+        />
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          className="w-56 border border-gray-200 rounded-full px-4 py-2"
+        >
+          <option value="">Todas las categorías</option>
+          {[...new Set(products.map(p => p.category))].map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+
+      {promotionsWithDetails.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {promotionsWithDetails.map(promo => (
+            <div key={promo.id} className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+              <p className="text-xs uppercase tracking-[0.4em] text-blue-500">Promoción sugerida</p>
+              <p className="text-lg font-semibold text-blue-900">{promo.name}</p>
+              <p className="text-sm text-blue-700">{promo.description}</p>
+              <div className="flex flex-wrap gap-2">
+                {promo.items.map(item => (
+                  <span key={item.id} className="px-3 py-1 rounded-full border border-blue-200 bg-white text-xs font-semibold text-blue-600">{item.name}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+              <th className="px-4 py-3">Producto</th>
+              <th className="px-4 py-3">Categoría</th>
+              <th className="px-4 py-3">Stock</th>
+              <th className="px-4 py-3">P.Compra</th>
+              <th className="px-4 py-3">P.Venta</th>
+              <th className="px-4 py-3">Margen</th>
+              <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map(product => {
+              const margin = product.sale_price
+                ? ((product.sale_price - (product.purchase_price || 0)) / product.sale_price) * 100
+                : 0
+              return (
+                <tr key={product.id} className="border-t border-gray-100">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold">{product.name}</p>
+                    <p className="text-xs text-gray-500">{product.barcode || 'Sin código'}</p>
+                  </td>
+                  <td className="px-4 py-3">{product.category}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.current_stock <= product.min_stock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {product.current_stock} / {product.min_stock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{fmtMoney(product.purchase_price || 0)}</td>
+                  <td className="px-4 py-3">{fmtMoney(product.sale_price || 0)}</td>
+                  <td className="px-4 py-3">{margin.toFixed(1)}%</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-600'}`}>
+                      {product.active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button onClick={() => openModal(product)} className="text-blue-600 hover:text-blue-900">
+                      <PencilLine className="inline w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(product)} className="text-red-600 hover:text-red-900">
+                      <Trash2 className="inline w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+            {!filteredProducts.length && (
+              <tr>
+                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
+                  {isLoading ? 'Cargando productos...' : 'No se encontraron productos.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx,.xls" className="hidden" />
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form onSubmit={handleSave} className="bg-white rounded-2xl p-6 w-full max-w-lg space-y-4">
+            <h2 className="text-xl font-semibold">{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs text-gray-500">
+                Código
+                <input value={form.barcode} onChange={e => setForm(prev => ({ ...prev, barcode: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
+              </label>
+              <label className="space-y-1 text-xs text-gray-500">
+                Nombre
+                <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" required />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs text-gray-500">
+                Categoría
+                <select value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2">
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-gray-500">
+                Unidad
+                <select value={form.unit} onChange={e => setForm(prev => ({ ...prev, unit: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2">
+                  {UNITS.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs text-gray-500">
+                Stock actual
+                <input type="number" value={form.current_stock} onChange={e => setForm(prev => ({ ...prev, current_stock: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
+              </label>
+              <label className="space-y-1 text-xs text-gray-500">
+                Stock mínimo
+                <input type="number" value={form.min_stock} onChange={e => setForm(prev => ({ ...prev, min_stock: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs text-gray-500">
+                Precio compra
+                <input type="number" value={form.purchase_price} onChange={e => setForm(prev => ({ ...prev, purchase_price: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
+              </label>
+              <label className="space-y-1 text-xs text-gray-500">
+                Precio venta
+                <input type="number" value={form.sale_price} onChange={e => setForm(prev => ({ ...prev, sale_price: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" required />
+              </label>
+            </div>
+            <div className="flex gap-3 items-center">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.active} onChange={e => setForm(prev => ({ ...prev, active: e.target.checked }))} />
+                Activo
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.allow_negative_stock} onChange={e => setForm(prev => ({ ...prev, allow_negative_stock: e.target.checked }))} />
+                Permitir stock negativo
+              </label>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-full text-sm font-semibold">
+                Cancelar
+              </button>
+              <button type="submit" disabled={mutateCreate.isLoading || mutateUpdate.isLoading} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm font-semibold">
+                Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  )
+}
