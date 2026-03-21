@@ -12,6 +12,7 @@ create table products (
   sale_price       numeric not null default 0,
   allow_negative_stock boolean default true,
   active           boolean default true,
+  expiration_date  date,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now()
 );
@@ -49,6 +50,23 @@ create table purchases (
   expense_id     uuid references expenses(id) on delete set null,
   created_at     timestamptz default now()
 );
+
+create table user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null unique,
+  role text not null check (role in ('admin','employee')),
+  created_at timestamptz default now()
+);
+
+alter table user_profiles enable row level security;
+
+create policy "profiles_select_self" on user_profiles
+  for select using (auth.uid() = id);
+
+create policy "profiles_admins" on user_profiles
+  for select using (exists (
+    select 1 from user_profiles up where up.id = auth.uid() and up.role = 'admin'
+  ));
 
 alter table products  enable row level security;
 alter table sales     enable row level security;

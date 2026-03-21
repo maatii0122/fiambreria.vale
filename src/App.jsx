@@ -32,9 +32,9 @@ export default function App() {
             <Route path="purchases"  element={<Purchases />} />
             <Route path="sales"      element={<Sales />} />
             <Route path="expenses"   element={<Expenses />} />
-            <Route path="reports"    element={<Reports />} />
+            <Route path="reports"    element={<ProtectedRoute allowedRoles={['admin']}><Reports /></ProtectedRoute>} />
             <Route path="scanner"    element={<InvoiceScanner />} />
-            <Route path="settings"   element={<Settings />} />
+            <Route path="settings"   element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>
