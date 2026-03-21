@@ -18,6 +18,7 @@ export function useUserProfile() {
         return
       }
       const { data, error } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+      console.log('user profile response', { user, data, error })
       if (error) {
         console.error('Error loading profile', error)
       }
