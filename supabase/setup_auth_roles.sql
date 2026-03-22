@@ -14,3 +14,13 @@ create or replace view my_profile as
   select id, role
   from user_profiles
   where id = auth.uid();
+
+create or replace function get_my_role()
+  returns text
+  language sql
+  security definer
+as $$
+  select role
+  from user_profiles
+  where id = auth.uid();
+$$;

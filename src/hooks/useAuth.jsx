@@ -3,13 +3,28 @@ import { supabase } from '@/lib/supabase'
 
 const AuthContext = createContext(null)
 
-async function fetchRole(userId) {
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', userId)
-    .single()
-  return data?.role ?? 'employee'
+async function fetchRole(userId, setRole) {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching role:', error)
+      setRole('employee')
+      return
+    }
+
+    const fetchedRole = data?.role ?? 'employee'
+    console.log('Role fetched:', fetchedRole)
+    setRole(fetchedRole)
+  } catch (err) {
+    console.error('fetchRole error:', err)
+    const { data: rpcData } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
+    setRole(rpcData ?? 'employee')
+  }
 }
 
 export default function AuthProvider({ children }) {
@@ -18,35 +33,33 @@ export default function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let mounted = true
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession()
       const session = data?.session
       if (session?.user) {
-        const fetchedRole = await fetchRole(session.user.id)
-        if (mounted) {
-          setUser(session.user)
-          setRole(fetchedRole)
-        }
-      } else if (mounted) {
-        setUser(null)
-        setRole(null)
-      }
-      if (mounted) setLoading(false)
-    }
-    loadSession()
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_, session) => {
-      if (session?.user) {
-        const fetchedRole = await fetchRole(session.user.id)
         setUser(session.user)
-        setRole(fetchedRole)
+        await fetchRole(session.user.id, setRole)
       } else {
         setUser(null)
         setRole(null)
       }
+      setLoading(false)
+    }
+
+    loadSession()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_, session) => {
+      if (session?.user) {
+        setUser(session.user)
+        await fetchRole(session.user.id, setRole)
+      } else {
+        setUser(null)
+        setRole(null)
+      }
+      setLoading(false)
     })
+
     return () => {
-      mounted = false
       listener?.subscription.unsubscribe()
     }
   }, [])

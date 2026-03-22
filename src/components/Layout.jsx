@@ -20,6 +20,7 @@ const NAV = [
 
 export default function Layout() {
   const { role, logout } = useAuth()
+  console.log('Current role in Layout:', role)
 
   const visibleMenu = useMemo(
     () => NAV.filter((item) => !item.adminOnly || role === 'admin'),
