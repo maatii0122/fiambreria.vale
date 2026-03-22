@@ -6,7 +6,7 @@ import { formatDateTimeART, fmtMoney, nowART } from '@/components/argentina'
 import { Loader2, Printer, Plus, Minus, X } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
 
-const CAJEROS = ['Lucas', 'Valentina', 'Marcos', 'Julia']
+const CAJEROS = ['Maia', 'Mía', 'Lucas']
 const PAYMENT_METHODS = ['efectivo', 'transferencia', 'qr', 'tarjeta']
 const PAYMENT_LABELS = {
   efectivo: 'Efectivo',
@@ -21,6 +21,8 @@ export default function POSv2() {
   const [screen, setScreen] = useState('apertura')
   const [turno, setTurno] = useState(null)
   const [cajero, setCajero] = useState(CAJEROS[0])
+  const [manualCajero, setManualCajero] = useState('')
+  const [manualCajero, setManualCajero] = useState('')
   const [montoInicial, setMontoInicial] = useState('')
   const [nota, setNota] = useState('')
   const [cart, setCart] = useState([])
@@ -196,17 +198,17 @@ export default function POSv2() {
       return
     }
     setTurno({
-      cajero,
+      cajero: manualCajero.trim() || cajero,
       montoInicial: parseFloat(montoInicial) || 0,
       nota,
-      inicio: new Date().toISOString(),
+      inicio: nowART().toISOString(),
     })
     setScreen('pos')
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ turno: {
-      cajero,
+      cajero: manualCajero.trim() || cajero,
       montoInicial: parseFloat(montoInicial) || 0,
       nota,
-      inicio: new Date().toISOString(),
+      inicio: nowART().toISOString(),
     }, screen: 'pos' }))
   }
 
@@ -259,6 +261,7 @@ export default function POSv2() {
     setRealCashCount('')
     setObservations('')
     setClosingSummary(null)
+    setManualCajero('')
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -281,6 +284,15 @@ export default function POSv2() {
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-sm text-gray-500">Cajero (manual)</label>
+            <input
+              value={manualCajero}
+              onChange={e => setManualCajero(e.target.value)}
+              placeholder="Otro cajero..."
+              className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2"
+            />
           </div>
           <div>
             <label className="text-sm text-gray-500">Monto inicial</label>
