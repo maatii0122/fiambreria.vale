@@ -30,7 +30,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white border-b border-blue-800">
+      <header className="bg-blue-900 text-white border-b border-blue-800 fixed inset-x-0 top-0 z-50">
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
           <div className="font-semibold tracking-[0.3em]">Fiambrerías Vale</div>
           <nav className="flex gap-2">
@@ -49,7 +49,7 @@ export default function Layout() {
           </button>
         </div>
       </header>
-      <main className="max-w-[1200px] mx-auto px-4 py-6">
+      <main className="max-w-[1200px] mx-auto px-4 py-6 pt-24">
         <Outlet />
       </main>
     </div>
