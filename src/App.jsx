@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 import Dashboard from '@/pages/Dashboard'
 import POSv2 from '@/pages/POSv2'
@@ -21,17 +22,21 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard"  element={<Dashboard />} />
-            <Route path="pos"        element={<POSv2 />} />
-            <Route path="products"   element={<Products />} />
-            <Route path="purchases"  element={<Purchases />} />
-            <Route path="sales"      element={<Sales />} />
-            <Route path="expenses"   element={<Expenses />} />
-            <Route path="reports"    element={<Reports />} />
-            <Route path="scanner"    element={<InvoiceScanner />} />
-            <Route path="settings"   element={<Settings />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route index element={<Navigate to="/pos" replace />} />
+              <Route path="pos" element={<POSv2 />} />
+              <Route path="productos" element={<Products />} />
+              <Route path="compras" element={<Purchases />} />
+              <Route path="scanner" element={<InvoiceScanner />} />
+              <Route element={<ProtectedRoute adminOnly />}>
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="gastos" element={<Expenses />} />
+                <Route path="reportes" element={<Reports />} />
+                <Route path="ventas" element={<Sales />} />
+                <Route path="config" element={<Settings />} />
+              </Route>
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>
