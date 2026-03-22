@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { Outlet, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, Truck,
-  Receipt, TrendingDown, BarChart3, ScanLine, Settings, Menu, X, LogOut
+  Receipt, TrendingDown, BarChart3, ScanLine, Settings, Menu, X
 } from 'lucide-react'
 
 const NAV = [
@@ -20,12 +19,6 @@ const NAV = [
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -61,13 +54,6 @@ export default function Layout() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={handleLogout}
-              className="hidden lg:flex items-center gap-1 px-3 py-2 text-blue-200 hover:text-white text-sm rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Salir
-            </button>
-            <button
               className="lg:hidden p-2 rounded-lg hover:bg-white/10"
               onClick={() => setOpen(!open)}
             >
@@ -85,12 +71,6 @@ export default function Layout() {
                 <span>{label}</span>
               </NavLink>
             ))}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 text-blue-200 text-sm mt-2 hover:text-white"
-            >
-              <LogOut className="w-4 h-4" /> Cerrar sesión
-            </button>
           </div>
         )}
       </nav>

@@ -1,9 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
-import ProtectedRoute from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
-import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import POSv2 from '@/pages/POSv2'
 import Products from '@/pages/Products'
@@ -23,8 +21,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard"  element={<Dashboard />} />
             <Route path="pos"        element={<POSv2 />} />
@@ -32,9 +29,9 @@ export default function App() {
             <Route path="purchases"  element={<Purchases />} />
             <Route path="sales"      element={<Sales />} />
             <Route path="expenses"   element={<Expenses />} />
-            <Route path="reports"    element={<ProtectedRoute allowedRoles={['admin']}><Reports /></ProtectedRoute>} />
+            <Route path="reports"    element={<Reports />} />
             <Route path="scanner"    element={<InvoiceScanner />} />
-            <Route path="settings"   element={<ProtectedRoute allowedRoles={['admin']}><Settings /></ProtectedRoute>} />
+            <Route path="settings"   element={<Settings />} />
           </Route>
         </Routes>
       </BrowserRouter>
