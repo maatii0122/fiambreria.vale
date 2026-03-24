@@ -2,11 +2,19 @@ import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-import { fmtMoney } from '@/components/argentina'
+import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { exportToXlsx, importFromXlsx, PURCHASE_COLUMNS, PURCHASE_IMPORT_COLUMNS } from '@/lib/xlsxUtils'
 
 const SAMPLE_ITEMS = [
-  { barcode: '123', name: 'Fiambre Premium', quantity: 1, purchase_price: 100, sale_price: 150, subtotal: 100 }
+  {
+    barcode: '123',
+    name: 'Fiambre Premium',
+    quantity: 1,
+    purchase_price: 100,
+    sale_price: 150,
+    subtotal: 100,
+    expiration_date: '',
+  },
 ]
 
 export default function Purchases() {
@@ -115,19 +123,20 @@ export default function Purchases() {
     if (prod) {
       const existing = items.find(i => i.product_id === prod.id)
       if (existing) {
-        setItems(items.map(i => i.product_id === prod.id
-          ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.purchase_price }
-          : i))
-      } else {
-        setItems([...items, {
-          product_id: prod.id,
-          product_name: prod.name,
-          quantity: 1,
-          purchase_price: prod.purchase_price || 0,
-          sale_price: prod.sale_price || 0,
-          subtotal: prod.purchase_price || 0,
-        }])
-      }
+      setItems(items.map(i => i.product_id === prod.id
+        ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.purchase_price }
+        : i))
+    } else {
+      setItems([...items, {
+        product_id: prod.id,
+        product_name: prod.name,
+        quantity: 1,
+        purchase_price: prod.purchase_price || 0,
+        sale_price: prod.sale_price || 0,
+        subtotal: prod.purchase_price || 0,
+        expiration_date: '',
+      }])
+    }
       setBarcodeInput('')
     } else {
       toast.error('Producto no encontrado')
@@ -144,6 +153,8 @@ export default function Purchases() {
         const prod = products.find(p => p.barcode === String(r.barcode) || (p.name || '').toLowerCase() === String(r.name || '').toLowerCase())
         const qty = parseFloat(r.quantity) || 1
         const price = parseFloat(r.purchase_price) || (prod?.purchase_price || 0)
+        const expirationRaw = r.expiration_date || r.fecha_vencimiento || r.vencimiento
+        const expiration = expirationRaw ? new Date(String(expirationRaw)) : null
         return {
           product_id: prod?.id || null,
           product_name: String(r.name || prod?.name || ''),
@@ -151,6 +162,9 @@ export default function Purchases() {
           purchase_price: price,
           sale_price: parseFloat(r.sale_price) || (prod?.sale_price || 0),
           subtotal: qty * price,
+          expiration_date: expiration && !Number.isNaN(expiration.valueOf())
+            ? expiration.toISOString().split('T')[0]
+            : '',
         }
       })
       setItems(prev => [...prev, ...newItems])
@@ -173,7 +187,11 @@ export default function Purchases() {
     exportToXlsx(
       purchases.map(p => ({
         ...p,
-        items_summary: (p.items || []).map(i => `${i.product_name || 'Sin nombre'} ×${i.quantity}`).join(' | ')
+        items_summary: (p.items || []).map(i => `${i.product_name || 'Sin nombre'} ×${i.quantity}`).join(' | '),
+        expiration_summary: (p.items || [])
+          .filter(i => i.expiration_date)
+          .map(i => `${i.product_name || 'Sin nombre'} → ${formatDateOnlyART(i.expiration_date)}`)
+          .join(' | '),
       })),
       PURCHASE_COLUMNS,
       `compras_${new Date().toISOString().split('T')[0]}`,
@@ -187,18 +205,46 @@ export default function Purchases() {
   }
 
   const handleSaveItem = (index, field, value) => {
-    setItems(prev => prev.map((item, idx) => idx === index ? {
-      ...item,
-      [field]: value,
-      subtotal: field === 'quantity'
-        ? (value * item.purchase_price)
-        : field === 'purchase_price'
-          ? (item.quantity * value)
-          : item.subtotal
-    } : item))
+    setItems(prev => prev.map((item, idx) => {
+      if (idx !== index) return item
+      const needsNumber = ['quantity', 'purchase_price', 'sale_price'].includes(field)
+      const nextValue = needsNumber ? (parseFloat(value) || 0) : value
+      const updated = { ...item, [field]: nextValue }
+      if (field === 'quantity') {
+        updated.subtotal = nextValue * (item.purchase_price || 0)
+      } else if (field === 'purchase_price') {
+        updated.subtotal = (item.quantity || 0) * nextValue
+      }
+      return updated
+    }))
   }
 
   const modalTotal = useMemo(() => items.reduce((sum, item) => sum + item.subtotal, 0), [items])
+
+  const upcomingExpirations = useMemo(() => {
+    const buckets = new Map()
+    purchases.forEach(purchase => {
+      ;(purchase.items || []).forEach(item => {
+        const raw = item.expiration_date
+        if (!raw) return
+        const date = new Date(raw)
+        if (Number.isNaN(date.valueOf())) return
+        const quantity = Number(item.quantity) || 0
+        if (!quantity) return
+        const key = `${item.product_name || 'Sin nombre'}__${date.toISOString().split('T')[0]}`
+        const existing = buckets.get(key) || {
+          product_name: item.product_name || 'Sin nombre',
+          expiration_date: date.toISOString().split('T')[0],
+          quantity: 0,
+        }
+        existing.quantity += quantity
+        buckets.set(key, existing)
+      })
+    })
+    return Array.from(buckets.values()).sort((a, b) =>
+      new Date(a.expiration_date) - new Date(b.expiration_date)
+    )
+  }, [purchases])
 
   return (
     <div className="space-y-6">
@@ -207,17 +253,38 @@ export default function Purchases() {
           <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Compras</p>
           <h1 className="text-3xl font-bold">Registro de compras y reposición de stock</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={handleExport} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold">
-            Exportar Excel
+      <div className="flex flex-wrap gap-2">
+        <button onClick={handleExport} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold">
+          Exportar Excel
           </button>
           <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">
             Nueva compra
           </button>
-        </div>
-      </header>
+      </div>
+    </header>
 
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+    {upcomingExpirations.length > 0 && (
+      <div className="bg-white rounded-2xl border border-orange-100 p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-orange-500">Vencimientos</p>
+            <p className="text-lg font-semibold">Reservas por fecha</p>
+          </div>
+          <span className="text-sm text-gray-500">{upcomingExpirations.length} registros</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {upcomingExpirations.slice(0, 6).map(({ product_name, expiration_date, quantity }) => (
+            <div key={`${product_name}-${expiration_date}`} className="rounded-xl border border-orange-100 p-4 bg-orange-50 space-y-1">
+              <p className="text-sm font-semibold">{product_name}</p>
+              <p className="text-xs text-gray-500">Vence: {formatDateOnlyART(expiration_date)}</p>
+              <p className="text-sm text-orange-700">{quantity} uds</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
@@ -303,18 +370,19 @@ export default function Purchases() {
             {showProductSelector && (
               <div className="grid md:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
                 {products.map(prod => (
-                  <button
-                    key={prod.id}
-                    onClick={() => {
-                      setItems(prev => [...prev, {
-                        product_id: prod.id,
-                        product_name: prod.name,
-                        quantity: 1,
-                        purchase_price: prod.purchase_price || 0,
-                        sale_price: prod.sale_price || 0,
-                        subtotal: prod.purchase_price || 0,
-                      }])
-                    }}
+                    <button
+                      key={prod.id}
+                      onClick={() => {
+                        setItems(prev => [...prev, {
+                          product_id: prod.id,
+                          product_name: prod.name,
+                          quantity: 1,
+                          purchase_price: prod.purchase_price || 0,
+                          sale_price: prod.sale_price || 0,
+                          subtotal: prod.purchase_price || 0,
+                          expiration_date: '',
+                        }])
+                      }}
                     className="border border-gray-200 rounded-xl px-3 py-2 text-left text-xs hover:border-blue-900"
                   >
                     <div className="font-semibold">{prod.name}</div>
@@ -324,14 +392,46 @@ export default function Purchases() {
               </div>
             )}
             <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-2">
+              <div className="grid grid-cols-7 gap-3 text-xs uppercase tracking-[0.3em] text-gray-500">
+                <span className="col-span-2">Producto</span>
+                <span className="text-center">Cant.</span>
+                <span className="text-center">P. Compra</span>
+                <span className="text-center">P. Venta</span>
+                <span className="text-center">Vencimiento</span>
+                <span className="text-right">Subtotal</span>
+                <span className="text-center">Acción</span>
+              </div>
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-6 gap-3 items-center">
-                  <div className="col-span-2">{item.product_name}</div>
-                  <input type="number" value={item.quantity} onChange={e => handleSaveItem(index, 'quantity', parseFloat(e.target.value) || 0)} className="border border-gray-200 rounded-lg px-2 py-1" />
-                  <input type="number" value={item.purchase_price} onChange={e => handleSaveItem(index, 'purchase_price', parseFloat(e.target.value) || 0)} className="border border-gray-200 rounded-lg px-2 py-1" />
-                  <input type="number" value={item.sale_price} onChange={e => handleSaveItem(index, 'sale_price', parseFloat(e.target.value) || 0)} className="border border-gray-200 rounded-lg px-2 py-1" />
-                  <div>{fmtMoney(item.subtotal)}</div>
-                  <button onClick={() => setItems(prev => prev.filter((_, idx) => idx !== index))} className="text-red-600">×</button>
+                <div key={index} className="grid grid-cols-7 gap-3 items-center">
+                  <div className="col-span-2 text-sm">{item.product_name}</div>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={e => handleSaveItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={item.purchase_price}
+                    onChange={e => handleSaveItem(index, 'purchase_price', parseFloat(e.target.value) || 0)}
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={item.sale_price}
+                    onChange={e => handleSaveItem(index, 'sale_price', parseFloat(e.target.value) || 0)}
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-center"
+                  />
+                  <input
+                    type="date"
+                    value={item.expiration_date || ''}
+                    onChange={e => handleSaveItem(index, 'expiration_date', e.target.value)}
+                    className="border border-gray-200 rounded-lg px-2 py-1 text-center"
+                  />
+                  <div className="text-right font-semibold">{fmtMoney(item.subtotal)}</div>
+                  <button onClick={() => setItems(prev => prev.filter((_, idx) => idx !== index))} className="text-red-600">
+                    ×
+                  </button>
                 </div>
               ))}
             </div>

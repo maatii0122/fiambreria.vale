@@ -172,6 +172,7 @@ export const PURCHASE_COLUMNS = [
   { key: 'supplier', label: 'Proveedor', width: 24 },
   { key: 'invoice_number', label: 'N° Factura', width: 18 },
   { key: 'items_summary', label: 'Productos', width: 40 },
+  { key: 'expiration_summary', label: 'Vencimientos', width: 30 },
   { key: 'total', label: 'Total ($)', width: 16, type: 'currency', align: 'right' },
 ]
 export const EXPENSE_COLUMNS = [
@@ -188,6 +189,7 @@ export const PURCHASE_IMPORT_COLUMNS = [
   { key: 'quantity', label: 'quantity', width: 12, type: 'number' },
   { key: 'purchase_price', label: 'purchase_price', width: 18, type: 'currency' },
   { key: 'sale_price', label: 'sale_price', width: 18, type: 'currency' },
+  { key: 'expiration_date', label: 'expiration_date', width: 18, type: 'date' },
 ]
 export const SCANNER_COLUMNS = [
   { key: 'barcode', label: 'Código de Barras', width: 20 },
