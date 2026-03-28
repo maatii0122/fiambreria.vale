@@ -1,9 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
+const ADMIN_EMAILS = (import.meta.env.VITE_SUPABASE_ADMIN_EMAILS || '')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
+
+const isAdminEmail = (email) => {
+  if (!email) return false
+  return ADMIN_EMAILS.includes(email.toLowerCase())
+}
+
 const AuthContext = createContext(null)
 
-async function fetchRole(userId, setRole) {
+async function fetchRole(userId, email, setRole) {
   try {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -13,8 +23,7 @@ async function fetchRole(userId, setRole) {
 
     if (error) {
       console.error('Error fetching role:', error)
-      setRole('employee')
-      return
+      throw error
     }
 
     const fetchedRole = data?.role ?? 'employee'
@@ -24,7 +33,19 @@ async function fetchRole(userId, setRole) {
   } catch (err) {
     console.error('fetchRole error:', err)
     const { data: rpcData } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
-    setRole(rpcData ?? 'employee')
+    const fallbackFromRpc = rpcData ?? null
+    if (fallbackFromRpc) {
+      setRole(fallbackFromRpc)
+      return
+    }
+    const fallbackRole = isAdminEmail(email) ? 'admin' : 'employee'
+    try {
+      const { data: ensured } = await supabase.rpc('ensure_my_profile', { preferred_role: fallbackRole })
+      setRole(ensured?.role || fallbackRole)
+    } catch (rpcError) {
+      console.error('ensure_my_profile error:', rpcError)
+      setRole(fallbackRole)
+    }
     return
   }
 }
@@ -50,7 +71,7 @@ export default function AuthProvider({ children }) {
         try {
           if (session?.user) {
             setUser(session.user)
-            await fetchRole(session.user.id, setRole)
+            await fetchRole(session.user.id, session.user.email, setRole)
           } else {
             setUser(null)
             setRole(null)
