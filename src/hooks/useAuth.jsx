@@ -20,23 +20,13 @@ async function fetchRole(userId, setRole) {
     const fetchedRole = data?.role ?? 'employee'
     console.log('Role fetched:', fetchedRole)
     setRole(fetchedRole)
+    return
   } catch (err) {
     console.error('fetchRole error:', err)
     const { data: rpcData } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
     setRole(rpcData ?? 'employee')
+    return
   }
-}
-
-const AUTH_TOKEN_PREFIX = 'sb-'
-const AUTH_TOKEN_SUFFIX = '-auth-token'
-
-const clearStaleAuthToken = () => {
-  if (typeof window === 'undefined') return
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith(AUTH_TOKEN_PREFIX) && key.endsWith(AUTH_TOKEN_SUFFIX)) {
-      localStorage.removeItem(key)
-    }
-  })
 }
 
 export default function AuthProvider({ children }) {
@@ -45,36 +35,41 @@ export default function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession()
-      const session = data?.session
-      if (session?.user) {
-        setUser(session.user)
-        await fetchRole(session.user.id, setRole)
-      } else {
+    let mounted = true
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
         setUser(null)
         setRole(null)
-        clearStaleAuthToken()
+        setLoading(false)
       }
-      setLoading(false)
-    }
+    }, 5000)
 
-    loadSession()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        await fetchRole(session.user.id, setRole)
-      } else {
-        setUser(null)
-        setRole(null)
-        clearStaleAuthToken()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_, session) => {
+        if (!mounted) return
+        try {
+          if (session?.user) {
+            setUser(session.user)
+            await fetchRole(session.user.id, setRole)
+          } else {
+            setUser(null)
+            setRole(null)
+          }
+        } catch (err) {
+          console.error('Auth state error:', err)
+          setUser(null)
+          setRole(null)
+        } finally {
+          clearTimeout(safetyTimer)
+          if (mounted) setLoading(false)
+        }
       }
-      setLoading(false)
-    })
+    )
 
     return () => {
-      listener?.subscription.unsubscribe()
+      mounted = false
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
     }
   }, [])
 
