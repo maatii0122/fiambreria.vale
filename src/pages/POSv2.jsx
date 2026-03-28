@@ -22,7 +22,6 @@ export default function POSv2() {
   const [turno, setTurno] = useState(null)
   const [cajero, setCajero] = useState(CAJEROS[0])
   const [manualCajero, setManualCajero] = useState('')
-  const [manualCajero, setManualCajero] = useState('')
   const [montoInicial, setMontoInicial] = useState('')
   const [nota, setNota] = useState('')
   const [cart, setCart] = useState([])
