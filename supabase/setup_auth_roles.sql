@@ -20,3 +20,23 @@ as $$
   from user_profiles
   where id = auth.uid();
 $$;
+
+create or replace function ensure_my_profile(preferred_role text default 'employee')
+  returns user_profiles
+  language plpgsql
+  security definer
+as $$
+declare
+  current_email text := current_setting('request.jwt.claims.email', true);
+begin
+  insert into user_profiles (id, email, role)
+    values (auth.uid(), coalesce(current_email, ''), preferred_role)
+    on conflict (id) do update set email = coalesce(current_email, user_profiles.email);
+
+  return (
+    select *
+    from user_profiles
+    where id = auth.uid()
+  );
+end;
+$$;

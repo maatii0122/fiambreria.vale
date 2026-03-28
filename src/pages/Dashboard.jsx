@@ -9,6 +9,7 @@ import {
   startOfWeekART,
   startOfMonthART,
 } from '@/components/argentina'
+import { useAuth } from '@/hooks/useAuth'
 
 const PAYMENT_BADGES = {
   efectivo:  'bg-emerald-100 text-emerald-800',
@@ -21,12 +22,14 @@ const badgeClass = (method) => PAYMENT_BADGES[method] || 'bg-gray-100 text-gray-
 
 export default function Dashboard() {
   const unlockInputRef = useRef(null)
+  const { user } = useAuth()
   const { data: sales = [] } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
       return data || []
     },
+    enabled: !!user,
   })
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -34,6 +37,7 @@ export default function Dashboard() {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
+    enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses'],
@@ -41,6 +45,7 @@ export default function Dashboard() {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
       return data || []
     },
+    enabled: !!user,
   })
 
   const [isUnlocked, setIsUnlocked] = useState(false)

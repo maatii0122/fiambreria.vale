@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { useReportsData } from '@/hooks/useReportsData'
 import { addPromotion, loadPromotions } from '@/lib/promotions'
+import { useAuth } from '@/hooks/useAuth'
 
 const PIE_COLORS = ['#1E3A8A','#2563EB','#3B82F6','#60A5FA','#93C5FD','#BFDBFE','#DBEAFE','#1D4ED8','#1E40AF','#1E3A8A']
 
@@ -21,6 +22,7 @@ export default function Reports() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [showUnlockDialog, setShowUnlockDialog] = useState(false)
   const [codeInput, setCodeInput] = useState('')
+  const { user } = useAuth()
 
   const [periodMode, setPeriodMode] = useState('month')
   const [customYear, setCustomYear] = useState(now.getFullYear())
@@ -38,6 +40,7 @@ export default function Reports() {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(2000)
       return data || []
     },
+    enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses'],
@@ -45,6 +48,7 @@ export default function Reports() {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(2000)
       return data || []
     },
+    enabled: !!user,
   })
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -52,6 +56,7 @@ export default function Reports() {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
+    enabled: !!user,
   })
 
   const data = useReportsData(sales, expenses, products, periodConfig)

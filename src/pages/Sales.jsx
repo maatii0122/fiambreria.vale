@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { exportToXlsx, SALE_COLUMNS } from '@/lib/xlsxUtils'
 import { formatDateTimeART, fmtMoney } from '@/components/argentina'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 
 const PaymentBadge = ({ method }) => {
   const styles = {
@@ -19,12 +20,14 @@ const PaymentBadge = ({ method }) => {
 }
 
 export default function Sales() {
+  const { user } = useAuth()
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
       return data || []
     },
+    enabled: !!user,
   })
   const [search, setSearch] = useState('')
 

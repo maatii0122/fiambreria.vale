@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { exportToXlsx, EXPENSE_COLUMNS } from '@/lib/xlsxUtils'
 import { formatDateOnlyART, fmtMoney } from '@/components/argentina'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 
 const EXPENSE_CATEGORIES = [
   'Luz','Gas','Agua','Sueldos','Alquiler','Mantenimiento','Telefonía','Internet','Impuestos','Mercadería','Otros'
@@ -25,12 +26,14 @@ const initialForm = () => ({
 
 export default function Expenses() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
       return data || []
     },
+    enabled: !!user,
   })
 
   const [showModal, setShowModal] = useState(false)

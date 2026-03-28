@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { formatDateTimeART, fmtMoney, nowART } from '@/components/argentina'
 import { Loader2, Printer, Plus, Minus, X } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
+import { useAuth } from '@/hooks/useAuth'
 
 const CAJEROS = ['Maia', 'Mía', 'Lucas']
 const PAYMENT_METHODS = ['efectivo', 'transferencia', 'qr', 'tarjeta']
@@ -18,6 +19,7 @@ const STORAGE_KEY = 'fiambrerias-turno'
 
 export default function POSv2() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [screen, setScreen] = useState('apertura')
   const [turno, setTurno] = useState(null)
   const [cajero, setCajero] = useState(CAJEROS[0])
@@ -43,6 +45,7 @@ export default function POSv2() {
       const { data } = await supabase.from('products').select('*').eq('active', true)
       return data || []
     },
+    enabled: !!user,
   })
 
   const { data: sales = [] } = useQuery({
@@ -51,6 +54,7 @@ export default function POSv2() {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
       return data || []
     },
+    enabled: !!user,
   })
 
   useEffect(() => {

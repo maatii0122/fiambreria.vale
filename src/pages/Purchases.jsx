@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { exportToXlsx, importFromXlsx, PURCHASE_COLUMNS, PURCHASE_IMPORT_COLUMNS } from '@/lib/xlsxUtils'
+import { useAuth } from '@/hooks/useAuth'
 
 const SAMPLE_ITEMS = [
   {
@@ -19,6 +20,7 @@ const SAMPLE_ITEMS = [
 
 export default function Purchases() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const barcodeRef = useRef(null)
   const { data: purchases = [], isLoading } = useQuery({
     queryKey: ['purchases'],
@@ -26,6 +28,7 @@ export default function Purchases() {
       const { data } = await supabase.from('purchases').select('*').order('created_at', { ascending: false }).limit(200)
       return data || []
     },
+    enabled: !!user,
   })
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -33,6 +36,7 @@ export default function Purchases() {
       const { data } = await supabase.from('products').select('*').eq('active', true)
       return data || []
     },
+    enabled: !!user,
   })
 
   const [showModal, setShowModal] = useState(false)

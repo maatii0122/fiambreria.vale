@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { exportToXlsx, SCANNER_COLUMNS } from '@/lib/xlsxUtils'
 import { toast } from 'sonner'
 import { Upload, Sparkles, Download, Loader2 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function InvoiceScanner() {
   const [file, setFile] = useState(null)
@@ -13,12 +14,14 @@ export default function InvoiceScanner() {
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [items, setItems] = useState([])
 
+  const { user } = useAuth()
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
+    enabled: !!user,
   })
 
   const handleFileChange = (e) => {

@@ -21,3 +21,24 @@ export const db = {
   expenses:  () => supabase.from('expenses'),
   purchases: () => supabase.from('purchases'),
 }
+
+/*
+-- Ejecutar en Supabase SQL Editor si el frontend no puede leer datos:
+
+create policy if not exists "productos_select_autenticados" on products
+  for select using (auth.role() = 'authenticated');
+
+create policy if not exists "productos_escritura_admin" on products
+  for all using (
+    exists (
+      select 1 from user_profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from user_profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+*/

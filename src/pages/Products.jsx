@@ -6,6 +6,7 @@ import { exportToXlsx, importFromXlsx, PRODUCT_COLUMNS } from '@/lib/xlsxUtils'
 import { fmtMoney } from '@/components/argentina'
 import { PencilLine, Trash2 } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
+import { useAuth } from '@/hooks/useAuth'
 
 const INITIAL_FORM = {
   barcode: '', name: '', category: 'Otros', unit: 'unidad',
@@ -34,6 +35,7 @@ const daysUntil = (value) => {
 
 export default function Products() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const fileInputRef = useRef(null)
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
@@ -42,6 +44,7 @@ export default function Products() {
       return data || []
     },
     staleTime: 1000 * 60,
+    enabled: !!user,
   })
 
   const [search, setSearch] = useState('')

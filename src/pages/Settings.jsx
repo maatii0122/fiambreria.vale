@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { exportMultiSheet, PRODUCT_COLUMNS, SALE_COLUMNS, PURCHASE_COLUMNS, EXPENSE_COLUMNS } from '@/lib/xlsxUtils'
 import { toast } from 'sonner'
 import { Users, Database, Download, Trash2, Loader2 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Administrador' },
@@ -12,6 +13,7 @@ const ROLE_OPTIONS = [
 
 export default function Settings() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('employee')
   const [inviting, setInviting] = useState(false)
@@ -26,6 +28,7 @@ export default function Settings() {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
+    enabled: !!user,
   })
   const { data: sales = [] } = useQuery({
     queryKey: ['sales'],
@@ -33,6 +36,7 @@ export default function Settings() {
       const { data } = await supabase.from('sales').select('*')
       return data || []
     },
+    enabled: !!user,
   })
   const { data: purchases = [] } = useQuery({
     queryKey: ['purchases'],
@@ -40,6 +44,7 @@ export default function Settings() {
       const { data } = await supabase.from('purchases').select('*')
       return data || []
     },
+    enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses'],
@@ -47,6 +52,7 @@ export default function Settings() {
       const { data } = await supabase.from('expenses').select('*')
       return data || []
     },
+    enabled: !!user,
   })
 
   const loadProfiles = useCallback(async () => {
