@@ -27,6 +27,18 @@ async function fetchRole(userId, setRole) {
   }
 }
 
+const AUTH_TOKEN_PREFIX = 'sb-'
+const AUTH_TOKEN_SUFFIX = '-auth-token'
+
+const clearStaleAuthToken = () => {
+  if (typeof window === 'undefined') return
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith(AUTH_TOKEN_PREFIX) && key.endsWith(AUTH_TOKEN_SUFFIX)) {
+      localStorage.removeItem(key)
+    }
+  })
+}
+
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
@@ -42,6 +54,7 @@ export default function AuthProvider({ children }) {
       } else {
         setUser(null)
         setRole(null)
+        clearStaleAuthToken()
       }
       setLoading(false)
     }
@@ -55,6 +68,7 @@ export default function AuthProvider({ children }) {
       } else {
         setUser(null)
         setRole(null)
+        clearStaleAuthToken()
       }
       setLoading(false)
     })
