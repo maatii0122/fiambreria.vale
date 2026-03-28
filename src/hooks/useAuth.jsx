@@ -32,11 +32,15 @@ async function fetchRole(userId, email, setRole) {
     return
   } catch (err) {
     console.error('fetchRole error:', err)
-    const { data: rpcData } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
-    const fallbackFromRpc = rpcData ?? null
-    if (fallbackFromRpc) {
-      setRole(fallbackFromRpc)
-      return
+    try {
+      const { data: rpcData } = await supabase.rpc('get_my_role')
+      const fallbackFromRpc = rpcData ?? null
+      if (fallbackFromRpc) {
+        setRole(fallbackFromRpc)
+        return
+      }
+    } catch (rpcError) {
+      console.error('get_my_role error:', rpcError)
     }
     const fallbackRole = isAdminEmail(email) ? 'admin' : 'employee'
     try {
