@@ -1,27 +1,32 @@
-const ART_OFFSET_MS = 3 * 60 * 60 * 1000
-
-export const nowART = () => new Date(Date.now() - ART_OFFSET_MS)
+export const nowART = () => new Date()
 
 export const startOfDayART = (date = new Date()) => {
-  const a = new Date(date.getTime() - ART_OFFSET_MS)
-  return new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()) + ART_OFFSET_MS)
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
 export const startOfWeekART = (date = new Date()) => {
   const d = startOfDayART(date)
-  const day = new Date(d.getTime() - ART_OFFSET_MS).getUTCDay()
+  const day = d.getDay()
   const diff = day === 0 ? 6 : day - 1
-  return new Date(d.getTime() - diff * 86400000)
+  const result = new Date(d)
+  result.setDate(d.getDate() - diff)
+  return result
 }
 
 export const startOfMonthART = (date = new Date()) => {
-  const a = new Date(date.getTime() - ART_OFFSET_MS)
-  return new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), 1) + ART_OFFSET_MS)
+  const d = new Date(date)
+  d.setDate(1)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
 export const startOfYearART = (date = new Date()) => {
-  const a = new Date(date.getTime() - ART_OFFSET_MS)
-  return new Date(Date.UTC(a.getUTCFullYear(), 0, 1) + ART_OFFSET_MS)
+  const d = new Date(date)
+  d.setMonth(0, 1)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
 export const formatDateTimeART = (dateStr) => {
