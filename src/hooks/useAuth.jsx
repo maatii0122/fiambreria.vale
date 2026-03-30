@@ -69,7 +69,22 @@ export default function AuthProvider({ children }) {
       }
     }, 5000)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    let authSubscription
+    const initSession = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const session = sessionData?.session
+        if (session?.user) {
+          setUser(session.user)
+          await fetchRole(session.user.id, session.user.email, setRole)
+        }
+      } catch (err) {
+        console.error('Initial session error:', err)
+      }
+    }
+
+    initSession()
+    authSubscription = supabase.auth.onAuthStateChange(
       async (_, session) => {
         if (!mounted) return
         try {
@@ -94,7 +109,7 @@ export default function AuthProvider({ children }) {
     return () => {
       mounted = false
       clearTimeout(safetyTimer)
-      subscription.unsubscribe()
+      authSubscription?.unsubscribe()
     }
   }, [])
 

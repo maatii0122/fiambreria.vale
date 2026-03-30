@@ -143,6 +143,18 @@ export default function POSv2() {
     }))
   }
 
+  const handleQuantityInput = (productId, value) => {
+    const parsed = parseInt(value, 10)
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      setCart(prev => prev.filter(item => item.product_id !== productId))
+      return
+    }
+    setCart(prev => prev.map(item => {
+      if (item.product_id !== productId) return item
+      return { ...item, quantity: parsed, subtotal: parsed * item.unit_price }
+    }))
+  }
+
   const removeFromCart = (productId) => {
     setCart(prev => prev.filter(item => item.product_id !== productId))
   }
@@ -433,7 +445,13 @@ export default function POSv2() {
                       <button onClick={() => updateQuantity(item.product_id, -1)} className="p-1 rounded-full bg-gray-100">
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span>{item.quantity}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={e => handleQuantityInput(item.product_id, e.target.value)}
+                        className="w-16 text-center border border-gray-200 rounded-lg p-1 text-sm"
+                      />
                       <button onClick={() => updateQuantity(item.product_id, 1)} className="p-1 rounded-full bg-gray-100">
                         <Plus className="w-3 h-3" />
                       </button>
