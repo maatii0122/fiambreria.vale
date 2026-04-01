@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const ADMIN_EMAILS = (import.meta.env.VITE_SUPABASE_ADMIN_EMAILS || '')
@@ -61,59 +61,30 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true
-    const safetyTimer = setTimeout(() => {
-      if (mounted) {
-        setUser(null)
-        setRole(null)
-        setLoading(false)
-      }
-    }, 5000)
-
-    let authSubscription
-    const initSession = async () => {
+    const subscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return
       try {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const session = sessionData?.session
         if (session?.user) {
           setUser(session.user)
           await fetchRole(session.user.id, session.user.email, setRole)
-        }
-      } catch (err) {
-        console.error('Initial session error:', err)
-      }
-    }
-
-    initSession()
-    authSubscription = supabase.auth.onAuthStateChange(
-      async (_, session) => {
-        if (!mounted) return
-        try {
-          if (session?.user) {
-            setUser(session.user)
-            await fetchRole(session.user.id, session.user.email, setRole)
-          } else {
-            setUser(null)
-            setRole(null)
-          }
-        } catch (err) {
-          console.error('Auth state error:', err)
+        } else {
           setUser(null)
           setRole(null)
-        } finally {
-          clearTimeout(safetyTimer)
-          if (mounted) setLoading(false)
         }
+      } catch (err) {
+        console.error('Auth state error:', err)
+        setUser(null)
+        setRole(null)
+      } finally {
+        if (mounted) setLoading(false)
       }
-    )
+    })
 
     return () => {
       mounted = false
-      clearTimeout(safetyTimer)
-      authSubscription?.unsubscribe()
+      subscription?.unsubscribe()
     }
   }, [])
-
-  const value = useMemo(() => ({ user, role, loading }), [user, role, loading])
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
