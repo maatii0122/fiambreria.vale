@@ -71,14 +71,21 @@ export default function Products() {
 
   const mutateCreate = useMutation({
     mutationFn: async (payload) => {
-      const { error } = await supabase.from('products').insert(payload)
+      const { data, error } = await supabase.from('products').insert(payload).select().single()
       if (error) throw error
+      return data
     },
     onSuccess: () => {
       toast.success('Producto creado')
       queryClient.invalidateQueries({ queryKey: ['products'] })
     },
-    onError: () => toast.error('Error guardando producto'),
+    onError: (error) => {
+      if (error?.code === '23505') {
+        toast.error('Ya existe un producto con ese código de barras')
+      } else {
+        toast.error('Error guardando producto: ' + (error?.message || ''))
+      }
+    },
   })
 
   const mutateUpdate = useMutation({
@@ -130,14 +137,22 @@ export default function Products() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+
+    if (!form.barcode?.trim()) {
+      toast.error('El código de barras es obligatorio')
+      return
+    }
+
     const payload = {
       ...form,
-      current_stock: parseFloat(form.current_stock),
-      min_stock: parseFloat(form.min_stock),
-      purchase_price: parseFloat(form.purchase_price),
-      sale_price: parseFloat(form.sale_price),
+      barcode: form.barcode.trim(),
+      current_stock: parseFloat(form.current_stock) || 0,
+      min_stock: parseFloat(form.min_stock) || 0,
+      purchase_price: parseFloat(form.purchase_price) || 0,
+      sale_price: parseFloat(form.sale_price) || 0,
       expiration_date: form.expiration_date || null,
     }
+
     if (editingProduct) {
       await mutateUpdate.mutateAsync({ id: editingProduct.id, payload })
     } else {
@@ -375,10 +390,20 @@ export default function Products() {
           <form onSubmit={handleSave} className="bg-white rounded-2xl p-6 w-full max-w-lg space-y-4">
             <h2 className="text-xl font-semibold">{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h2>
             <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-xs text-gray-500">
-                Código
-                <input value={form.barcode} onChange={e => setForm(prev => ({ ...prev, barcode: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" />
-              </label>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-600 block">Código *</label>
+                <input
+                  type="text"
+                  value={form.barcode}
+                  onChange={e => setForm(prev => ({ ...prev, barcode: e.target.value }))}
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                  placeholder="Ej: 7790310985113"
+                  required
+                />
+                {!form.barcode?.trim() && (
+                  <p className="text-xs text-red-500">Campo obligatorio</p>
+                )}
+              </div>
               <label className="space-y-1 text-xs text-gray-500">
                 Nombre
                 <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2" required />
