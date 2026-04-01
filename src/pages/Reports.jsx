@@ -17,11 +17,13 @@ const MONTHS = [
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
 ]
 
+const ACCESS_KEY = 'LucasVale111'
+
 export default function Reports() {
   const now = new Date()
-  const [isUnlocked, setIsUnlocked] = useState(false)
-  const [showUnlockDialog, setShowUnlockDialog] = useState(false)
   const [codeInput, setCodeInput] = useState('')
+  const [accessGranted, setAccessGranted] = useState(false)
+  const [accessError, setAccessError] = useState('')
   const { user } = useAuth()
 
   const [periodMode, setPeriodMode] = useState('month')
@@ -40,7 +42,7 @@ export default function Reports() {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(2000)
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user && accessGranted,
   })
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses'],
@@ -48,7 +50,7 @@ export default function Reports() {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(2000)
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user && accessGranted,
   })
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -56,16 +58,10 @@ export default function Reports() {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user && accessGranted,
   })
 
   const data = useReportsData(sales, expenses, products, periodConfig)
-
-  useEffect(() => {
-    const exp = localStorage.getItem('financeUnlockExpiry')
-    if (exp && Date.now() < parseInt(exp, 10)) setIsUnlocked(true)
-    else localStorage.removeItem('financeUnlockExpiry')
-  }, [])
 
   useEffect(() => {
     if (periodMode !== 'custom') return
@@ -83,23 +79,16 @@ export default function Reports() {
     }
   }
 
-  const handleUnlock = (e) => {
-    if (e) e.preventDefault()
-    if (codeInput === 'LucasVale111') {
-      localStorage.setItem('financeUnlockExpiry', (Date.now() + 30 * 60 * 1000).toString())
-      setIsUnlocked(true)
-      setShowUnlockDialog(false)
+  const handleAccessSubmit = (e) => {
+    e.preventDefault()
+    if (codeInput === ACCESS_KEY) {
+      setAccessGranted(true)
+      setAccessError('')
       setCodeInput('')
-      toast.success('Desbloqueado por 30 minutos')
     } else {
-      toast.error('Código incorrecto')
+      setAccessError('Clave incorrecta')
       setCodeInput('')
     }
-  }
-
-  const handleLock = () => {
-    localStorage.removeItem('financeUnlockExpiry')
-    setIsUnlocked(false)
   }
 
   const {
@@ -141,42 +130,22 @@ export default function Reports() {
     }
   }
 
-  if (!isUnlocked) {
+  if (!accessGranted) {
     return (
-      <div className="space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Reports</p>
-            <h1 className="text-3xl font-bold">Reportes</h1>
-            <p className="text-gray-500">Más datos para tomar decisiones</p>
-          </div>
-          <button onClick={() => setShowUnlockDialog(true)} className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">Desbloquear datos</button>
-        </header>
-
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center space-y-4">
-          <p className="text-xl font-semibold text-gray-800">Información Financiera Bloqueada</p>
-          <p className="text-gray-500">Ingresá el código de seguridad para ver las métricas sensibles.</p>
-          <button onClick={() => setShowUnlockDialog(true)} className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">Desbloquear</button>
-        </div>
-
-        {showUnlockDialog && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <form onSubmit={handleUnlock} className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
-              <h2 className="text-lg font-semibold">Código de desbloqueo</h2>
-              <input
-                type="password"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="LucasVale111"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400"
-              />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowUnlockDialog(false)} className="text-sm text-gray-500">Cancelar</button>
-                <button type="submit" className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">Desbloquear</button>
-              </div>
-            </form>
-          </div>
-        )}
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <form onSubmit={handleAccessSubmit} className="w-full max-w-sm space-y-4">
+          <input
+            autoComplete="off"
+            type="password"
+            value={codeInput}
+            onChange={(e) => setCodeInput(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          {accessError && <p className="text-sm text-red-500">{accessError}</p>}
+          <button type="submit" className="w-full px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">
+            Acceder
+          </button>
+        </form>
       </div>
     )
   }
@@ -209,7 +178,6 @@ export default function Reports() {
               </select>
             </div>
           )}
-          <button onClick={handleLock} className="px-3 py-1 rounded-full border border-gray-200 text-sm font-semibold">Bloquear</button>
         </div>
       </header>
 

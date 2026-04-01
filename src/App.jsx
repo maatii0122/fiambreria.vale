@@ -29,13 +29,11 @@ export default function App() {
               <Route path="productos" element={<Products />} />
               <Route path="compras" element={<Purchases />} />
               <Route path="scanner" element={<InvoiceScanner />} />
-              <Route element={<ProtectedRoute adminOnly />}>
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="gastos" element={<Expenses />} />
-                <Route path="reportes" element={<Reports />} />
-                <Route path="ventas" element={<Sales />} />
-                <Route path="config" element={<Settings />} />
-              </Route>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="gastos" element={<Expenses />} />
+              <Route path="reportes" element={<Reports />} />
+              <Route path="ventas" element={<Sales />} />
+              <Route path="config" element={<Settings />} />
             </Route>
           </Route>
         </Routes>

@@ -1,27 +1,20 @@
-import { useMemo } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 const NAV = [
-  { to: '/dashboard', label: 'Dashboard', adminOnly: true },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/pos', label: 'Punto de Venta' },
   { to: '/productos', label: 'Productos' },
   { to: '/compras', label: 'Compras' },
-  { to: '/ventas', label: 'Ventas', adminOnly: true },
-  { to: '/gastos', label: 'Gastos', adminOnly: true },
-  { to: '/reportes', label: 'Reportes', adminOnly: true },
+  { to: '/ventas', label: 'Ventas' },
+  { to: '/gastos', label: 'Gastos' },
+  { to: '/reportes', label: 'Reportes' },
   { to: '/scanner', label: 'Scanner' },
-  { to: '/config', label: 'Config', adminOnly: true },
+  { to: '/config', label: 'Config' },
 ]
 
 export default function Layout() {
-  const { role, logout } = useAuth()
-  console.log('Current role in Layout:', role)
-
-  const visibleMenu = useMemo(
-    () => NAV.filter((item) => !item.adminOnly || role === 'admin'),
-    [role]
-  )
+  const { logout } = useAuth()
 
   const linkClass = ({ isActive }) =>
     `px-3 py-2 rounded-full text-sm font-semibold transition-colors ${
@@ -34,7 +27,7 @@ export default function Layout() {
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
           <div className="font-semibold tracking-[0.3em]">Fiambrerías Vale</div>
           <nav className="flex gap-2">
-            {visibleMenu.map(({ to, label }) => (
+            {NAV.map(({ to, label }) => (
               <NavLink key={to} to={to} className={linkClass}>
                 {label}
               </NavLink>

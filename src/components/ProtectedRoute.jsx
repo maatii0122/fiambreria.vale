@@ -1,10 +1,9 @@
 import { Outlet } from 'react-router-dom'
 import LoginForm from './LoginForm'
-import AccessDenied from './AccessDenied'
 import { useAuth } from '@/hooks/useAuth'
 
-export default function ProtectedRoute({ adminOnly = false }) {
-  const { user, role, loading } = useAuth()
+export default function ProtectedRoute() {
+  const { user, loading } = useAuth()
 
   if (loading) {
     return (
@@ -15,7 +14,6 @@ export default function ProtectedRoute({ adminOnly = false }) {
   }
 
   if (!user) return <LoginForm />
-  if (adminOnly && role !== 'admin') return <AccessDenied />
 
   return <Outlet />
 }
