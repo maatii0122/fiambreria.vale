@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { useReportsData } from '@/hooks/useReportsData'
-import { addPromotion, loadPromotions } from '@/lib/promotions'
+import { addPromotion } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
 
 const PIE_COLORS = ['#1E3A8A','#2563EB','#3B82F6','#60A5FA','#93C5FD','#BFDBFE','#DBEAFE','#1D4ED8','#1E40AF','#1E3A8A']
@@ -29,7 +29,6 @@ export default function Reports() {
     year: now.getFullYear(),
     month: now.getMonth(),
   })
-  const [promotions, setPromotions] = useState(() => loadPromotions())
 
   const { data: sales = [] } = useQuery({
     queryKey: ['sales'],
@@ -77,7 +76,7 @@ export default function Reports() {
   const {
     totalRevenue, prevRevenue, sameLastYear, totalExpenses, totalProfit,
     netProfit, projected, daysInMonth, daysElapsed, dailyChart,
-    expPieChart, rotacion, canasta, criticalStock, tips, dailyAvg,
+    expPieChart, rotacion, canasta, criticalStock, cajeroStats, tips, dailyAvg,
   } = data
 
   const revDelta = prevRevenue === 0 ? 0 : Math.round((totalRevenue - prevRevenue) / prevRevenue * 100)
@@ -106,7 +105,6 @@ export default function Reports() {
       productIds: suggestedPromotion.productIds,
     })
     if (success) {
-      setPromotions(loadPromotions())
       toast.success('Promoción creada y lista en Productos & POS')
     } else {
       toast.error('La promoción ya fue creada')
@@ -292,6 +290,31 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {cajeroStats.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-3">
+          <p className="text-sm uppercase tracking-[0.4em] text-gray-400">Ventas por cajero</p>
+          <div className="divide-y divide-gray-100">
+            {cajeroStats.map((cajero, i) => (
+              <div key={cajero.name} className="py-3 flex items-center justify-between text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-900 text-xs font-bold flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-gray-900">{cajero.name}</p>
+                    <p className="text-xs text-gray-500">{cajero.count} {cajero.count === 1 ? 'venta' : 'ventas'}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-gray-900">{fmtMoney(cajero.total)}</p>
+                  <p className="text-xs text-gray-500">Ganancia: {fmtMoney(cajero.profit)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {criticalStock.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-3">

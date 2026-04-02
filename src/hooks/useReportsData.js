@@ -143,6 +143,21 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       .filter(product => product.daysLeft < 14)
       .sort((a, b) => a.daysLeft - b.daysLeft)
 
+    // Cajero stats for the period
+    const cajeroMap = {}
+    inPeriod.forEach(sale => {
+      const cajero = sale.cashier || 'Sin cajero'
+      if (!cajeroMap[cajero]) cajeroMap[cajero] = { count: 0, total: 0, profit: 0 }
+      cajeroMap[cajero].count++
+      cajeroMap[cajero].total += sale.total || 0
+      cajeroMap[cajero].profit += (sale.items || []).reduce(
+        (s, item) => s + ((item.unit_price - (item.purchase_price || 0)) * item.quantity), 0
+      )
+    })
+    const cajeroStats = Object.entries(cajeroMap)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.total - a.total)
+
     const tips = []
     if (prevRevenue > 0 && totalRevenue < prevRevenue * 0.8) {
       tips.push(`⚠️ Las ventas cayeron un ${Math.round((1 - totalRevenue / prevRevenue) * 100)}% vs el período anterior.`)
@@ -173,6 +188,7 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       rotacion,
       canasta,
       criticalStock,
+      cajeroStats,
       tips,
     }
   }, [sales, expenses, products, periodConfig])
