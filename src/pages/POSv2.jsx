@@ -36,6 +36,7 @@ export default function POSv2() {
   const barcodeRef = useRef(null)
   const montoRef = useRef(null)
   const [promotions, setPromotions] = useState(() => loadPromotions())
+  const [showMobileCart, setShowMobileCart] = useState(false)
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -191,6 +192,7 @@ export default function POSv2() {
       setFiadoCustomer('')
       setShowFiadoModal(false)
       setPendingSale(null)
+      setShowMobileCart(false)
       toast.success('Venta registrada')
     },
     onError: () => toast.error('Error al registrar la venta'),
@@ -565,7 +567,7 @@ export default function POSv2() {
           )}
 
           {/* Product grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 pb-24 lg:pb-0">
             {filteredProducts.map(product => {
               const disabled = !product.allow_negative_stock && product.current_stock <= 0
               const inCart = cart.find(i => i.product_id === product.id)
@@ -600,16 +602,31 @@ export default function POSv2() {
           </div>
         </div>
 
-        {/* Right: cart */}
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col" style={{ maxHeight: 'calc(100vh - 160px)', position: 'sticky', top: '80px' }}>
+        {/* Right: cart — desktop sidebar / mobile bottom sheet */}
+        {showMobileCart && (
+          <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setShowMobileCart(false)} />
+        )}
+        <div
+          className={`bg-white border border-gray-100 shadow-sm flex flex-col ${
+            showMobileCart
+              ? 'fixed inset-x-0 bottom-0 z-40 rounded-t-2xl max-h-[90vh] lg:static lg:inset-auto lg:z-auto lg:max-h-none lg:rounded-2xl'
+              : 'hidden lg:flex rounded-2xl'
+          }`}
+          style={!showMobileCart ? { maxHeight: 'calc(100vh - 160px)', position: 'sticky', top: '80px' } : undefined}
+        >
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-gray-400" />
               <span className="font-semibold text-gray-900">{cart.length} {cart.length === 1 ? 'ítem' : 'ítems'}</span>
             </div>
-            {cart.length > 0 && (
-              <button onClick={() => setCart([])} className="text-xs text-red-500 hover:text-red-700 font-semibold">Vaciar</button>
-            )}
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button onClick={() => setCart([])} className="text-xs text-red-500 hover:text-red-700 font-semibold">Vaciar</button>
+              )}
+              <button onClick={() => setShowMobileCart(false)} className="lg:hidden p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
@@ -690,16 +707,34 @@ export default function POSv2() {
 
               <button
                 onClick={handleConfirmSale}
-                disabled={!cart.length || completeSaleMutation.isLoading}
+                disabled={!cart.length || completeSaleMutation.isPending}
                 className="w-full py-3 rounded-xl text-white font-semibold bg-blue-900 hover:bg-blue-800 disabled:opacity-40 flex items-center justify-center gap-2 transition-colors"
               >
-                {completeSaleMutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 Confirmar venta
               </button>
             </div>
           )}
         </div>
       </div>
+    </div>
+
+    {/* Mobile floating cart button */}
+    <div className="fixed bottom-0 inset-x-0 p-4 z-20 lg:hidden">
+      <button
+        onClick={() => setShowMobileCart(true)}
+        className={`w-full py-4 rounded-2xl font-bold flex items-center justify-between px-5 shadow-xl transition-all ${
+          cart.length > 0
+            ? 'bg-blue-900 text-white'
+            : 'bg-gray-100 text-gray-400 pointer-events-none'
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <ShoppingCart className="w-5 h-5" />
+          {cart.length > 0 ? `${cart.length} ítem${cart.length !== 1 ? 's' : ''}` : 'Carrito vacío'}
+        </span>
+        <span className="text-lg">{cart.length > 0 ? fmtMoney(cartTotal) : ''}</span>
+      </button>
     </div>
 
     {/* Receipt hidden in DOM — revealed by @media print */}
@@ -733,10 +768,10 @@ export default function POSv2() {
             </button>
             <button
               onClick={handleConfirmFiado}
-              disabled={!fiadoCustomer.trim() || completeSaleMutation.isLoading}
+              disabled={!fiadoCustomer.trim() || completeSaleMutation.isPending}
               className="flex-1 py-2.5 bg-blue-900 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 disabled:opacity-40 flex items-center justify-center gap-2"
             >
-              {completeSaleMutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Confirmar fiado
             </button>
           </div>
