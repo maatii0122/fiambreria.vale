@@ -2,21 +2,23 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
-const NAV = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/pos', label: 'Punto de Venta' },
-  { to: '/productos', label: 'Productos' },
-  { to: '/compras', label: 'Compras' },
-  { to: '/ventas', label: 'Ventas' },
-  { to: '/gastos', label: 'Gastos' },
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/scanner', label: 'Scanner' },
-  { to: '/config', label: 'Config' },
+const NAV_ITEMS = [
+  { to: '/dashboard', label: 'Dashboard', adminOnly: false },
+  { to: '/pos', label: 'Punto de Venta', adminOnly: false },
+  { to: '/productos', label: 'Productos', adminOnly: false },
+  { to: '/compras', label: 'Compras', adminOnly: false },
+  { to: '/ventas', label: 'Ventas', adminOnly: false },
+  { to: '/gastos', label: 'Gastos', adminOnly: false },
+  { to: '/reportes', label: 'Reportes', adminOnly: true },
+  { to: '/scanner', label: 'Scanner', adminOnly: false },
+  { to: '/config', label: 'Config', adminOnly: true },
 ]
 
 export default function Layout() {
-  const { logout } = useAuth()
+  const { logout, role } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  const visibleNav = NAV_ITEMS.filter(item => !item.adminOnly || role === 'admin')
 
   const linkClass = ({ isActive }) =>
     `px-3 py-2 rounded-full text-sm font-semibold transition-colors ${
@@ -29,7 +31,7 @@ export default function Layout() {
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
           <div className="font-semibold tracking-[0.3em]">Fiambrerías Vale</div>
           <nav className="hidden md:flex gap-2">
-            {NAV.map(({ to, label }) => (
+            {visibleNav.map(({ to, label }) => (
               <NavLink key={to} to={to} className={linkClass}>
                 {label}
               </NavLink>
@@ -60,7 +62,7 @@ export default function Layout() {
         {mobileOpen && (
           <nav className="md:hidden bg-blue-900 border-t border-blue-800">
             <div className="px-4 py-3 flex flex-col gap-2">
-              {NAV.map(({ to, label }) => (
+              {visibleNav.map(({ to, label }) => (
                 <NavLink
                   key={to}
                   to={to}

@@ -17,13 +17,8 @@ const MONTHS = [
   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
 ]
 
-const ACCESS_KEY = 'LucasVale111'
-
 export default function Reports() {
   const now = new Date()
-  const [codeInput, setCodeInput] = useState('')
-  const [accessGranted, setAccessGranted] = useState(false)
-  const [accessError, setAccessError] = useState('')
   const { user } = useAuth()
 
   const [periodMode, setPeriodMode] = useState('month')
@@ -42,7 +37,7 @@ export default function Reports() {
       const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(2000)
       return data || []
     },
-    enabled: !!user && accessGranted,
+    enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
     queryKey: ['expenses'],
@@ -50,7 +45,7 @@ export default function Reports() {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(2000)
       return data || []
     },
-    enabled: !!user && accessGranted,
+    enabled: !!user,
   })
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -58,7 +53,7 @@ export default function Reports() {
       const { data } = await supabase.from('products').select('*')
       return data || []
     },
-    enabled: !!user && accessGranted,
+    enabled: !!user,
   })
 
   const data = useReportsData(sales, expenses, products, periodConfig)
@@ -76,18 +71,6 @@ export default function Reports() {
       setPeriodConfig({ type: 'month', year: now.getFullYear(), month: now.getMonth() })
     } else {
       setPeriodConfig({ type: 'month', year: customYear, month: customMonth })
-    }
-  }
-
-  const handleAccessSubmit = (e) => {
-    e.preventDefault()
-    if (codeInput === ACCESS_KEY) {
-      setAccessGranted(true)
-      setAccessError('')
-      setCodeInput('')
-    } else {
-      setAccessError('Clave incorrecta')
-      setCodeInput('')
     }
   }
 
@@ -128,26 +111,6 @@ export default function Reports() {
     } else {
       toast.error('La promoción ya fue creada')
     }
-  }
-
-  if (!accessGranted) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <form onSubmit={handleAccessSubmit} className="w-full max-w-sm space-y-4">
-          <input
-            autoComplete="off"
-            type="password"
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-          {accessError && <p className="text-sm text-red-500">{accessError}</p>}
-          <button type="submit" className="w-full px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">
-            Acceder
-          </button>
-        </form>
-      </div>
-    )
   }
 
   return (

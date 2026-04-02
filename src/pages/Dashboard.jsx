@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import {
   formatDateTimeART,
@@ -21,8 +20,9 @@ const PAYMENT_BADGES = {
 const badgeClass = (method) => PAYMENT_BADGES[method] || 'bg-gray-100 text-gray-800'
 
 export default function Dashboard() {
-  const unlockInputRef = useRef(null)
-  const { user } = useAuth()
+  const { user, role } = useAuth()
+  const isAdmin = role === 'admin'
+
   const { data: sales = [] } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
@@ -45,42 +45,8 @@ export default function Dashboard() {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user && isAdmin,
   })
-
-  const [isUnlocked, setIsUnlocked] = useState(false)
-  const [showUnlockDialog, setShowUnlockDialog] = useState(false)
-  const [codeInput, setCodeInput] = useState('')
-
-  useEffect(() => {
-    const exp = localStorage.getItem('financeUnlockExpiry')
-    if (exp && Date.now() < parseInt(exp, 10)) setIsUnlocked(true)
-    else localStorage.removeItem('financeUnlockExpiry')
-  }, [])
-
-  useEffect(() => {
-    if (showUnlockDialog) {
-      unlockInputRef.current?.focus()
-    }
-  }, [showUnlockDialog])
-
-  const handleUnlock = () => {
-    if (codeInput === 'LucasVale111') {
-      localStorage.setItem('financeUnlockExpiry', (Date.now() + 30 * 60 * 1000).toString())
-      setIsUnlocked(true)
-      setShowUnlockDialog(false)
-      setCodeInput('')
-      toast.success('Desbloqueado por 30 minutos')
-    } else {
-      toast.error('Código incorrecto')
-      setCodeInput('')
-    }
-  }
-
-  const handleLock = () => {
-    localStorage.removeItem('financeUnlockExpiry')
-    setIsUnlocked(false)
-  }
 
   const today = startOfDayART()
   const weekStart = startOfWeekART()
@@ -106,7 +72,6 @@ export default function Dashboard() {
   const netProfit = monthProfit - monthExpTotal
 
   const lowStockProducts = products.filter(p => p.active && p.current_stock <= p.min_stock)
-
   const recentSales = sales.slice(0, 5)
 
   return (
@@ -116,40 +81,23 @@ export default function Dashboard() {
           <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Fiambrerías Vale</p>
           <h1 className="text-3xl font-bold">Panel de control</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {isUnlocked ? (
-            <button
-              onClick={handleLock}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold"
-            >
-              Bloquear finanzas
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowUnlockDialog(true)}
-              className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-semibold"
-            >
-              Desbloquear finanzas
-            </button>
-          )}
-        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-gray-500">Ventas Hoy</p>
           <p className="text-3xl font-bold mt-2">{todaySales.length}</p>
-          <p className="text-sm text-gray-500">{isUnlocked ? fmtMoney(todayRevenue) : '•••'}</p>
+          <p className="text-sm text-gray-500">{isAdmin ? fmtMoney(todayRevenue) : '—'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-gray-500">Ingresos Hoy</p>
-          <p className="text-3xl font-bold mt-2">{isUnlocked ? fmtMoney(todayRevenue) : '•••'}</p>
-          <p className="text-xs text-gray-500 mt-1">Ganancia: {isUnlocked ? fmtMoney(todayProfit) : '•••'}</p>
+          <p className="text-3xl font-bold mt-2">{isAdmin ? fmtMoney(todayRevenue) : '•••'}</p>
+          <p className="text-xs text-gray-500 mt-1">Ganancia: {isAdmin ? fmtMoney(todayProfit) : '•••'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-gray-500">Mes Actual</p>
-          <p className="text-3xl font-bold mt-2">{isUnlocked ? fmtMoney(monthRevenue) : '•••'}</p>
-          <p className="text-xs text-gray-500 mt-1">Semana: {isUnlocked ? fmtMoney(weekRevenue) : '•••'}</p>
+          <p className="text-3xl font-bold mt-2">{isAdmin ? fmtMoney(monthRevenue) : '•••'}</p>
+          <p className="text-xs text-gray-500 mt-1">Semana: {isAdmin ? fmtMoney(weekRevenue) : '•••'}</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold text-gray-500">Stock Bajo</p>
@@ -158,18 +106,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!isUnlocked ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center">
-          <p className="text-lg font-semibold">Información Financiera Bloqueada</p>
-          <p className="text-sm text-gray-500 mt-2">Ingresos y ganancias se muestran solo después de desbloquear.</p>
-          <button
-            onClick={() => setShowUnlockDialog(true)}
-            className="mt-4 px-6 py-2 bg-blue-900 text-white rounded-full text-sm"
-          >
-            Desbloquear
-          </button>
-        </div>
-      ) : (
+      {isAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-gray-500">Ganancia Mensual</p>
@@ -196,6 +133,20 @@ export default function Dashboard() {
         </div>
       )}
 
+      {!isAdmin && lowStockProducts.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <p className="text-sm font-semibold text-amber-700">Productos con stock bajo</p>
+          <ul className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+            {lowStockProducts.map(product => (
+              <li key={product.id} className="flex items-center justify-between text-sm">
+                <span>{product.name}</span>
+                <span className="text-xs text-gray-500">{product.current_stock}/{product.min_stock}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Ventas recientes</h2>
@@ -211,7 +162,7 @@ export default function Dashboard() {
                   <th className="pb-2">Ticket</th>
                   <th className="pb-2">Hora</th>
                   <th className="pb-2">Cajero</th>
-                  <th className="pb-2">Total</th>
+                  {isAdmin && <th className="pb-2">Total</th>}
                   <th className="pb-2">Pago</th>
                 </tr>
               </thead>
@@ -221,7 +172,7 @@ export default function Dashboard() {
                     <td className="py-2 font-medium text-gray-700">{sale.sale_number}</td>
                     <td className="py-2 text-gray-500">{formatDateTimeART(sale.created_at)}</td>
                     <td className="py-2 text-gray-600">{sale.cashier}</td>
-                    <td className="py-2 font-semibold">{fmtMoney(sale.total)}</td>
+                    {isAdmin && <td className="py-2 font-semibold">{fmtMoney(sale.total)}</td>}
                     <td className="py-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badgeClass(sale.payment_method)}`}>
                         {sale.payment_method}
@@ -234,32 +185,6 @@ export default function Dashboard() {
           </div>
         )}
       </section>
-
-      {showUnlockDialog && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-lg font-semibold">Código de seguridad</h3>
-            <p className="text-sm text-gray-500 mt-1">Ingresá el código para desbloquear finanzas.</p>
-            <input
-              ref={unlockInputRef}
-              value={codeInput}
-              onChange={e => setCodeInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleUnlock()}
-              className="mt-4 w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              type="password"
-              placeholder="Código"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setShowUnlockDialog(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm">
-                Cancelar
-              </button>
-              <button onClick={handleUnlock} className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm">
-                Desbloquear
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

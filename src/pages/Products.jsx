@@ -52,13 +52,20 @@ export default function Products() {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [form, setForm] = useState(INITIAL_FORM)
+  const [submitted, setSubmitted] = useState(false)
   const [promotions, setPromotions] = useState(() => loadPromotions())
 
   const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase()
     return products.filter(product => {
-      const matchesSearch = [product.name, product.barcode].some(value =>
-        String(value || '').toLowerCase().includes(search.toLowerCase())
-      )
+      // If the query looks like a barcode (only digits), do exact match on barcode
+      const isBarcode = /^\d+$/.test(q)
+      const matchesSearch = isBarcode
+        ? String(product.barcode || '') === q
+        : (
+            String(product.name || '').toLowerCase().includes(q) ||
+            String(product.barcode || '').toLowerCase().includes(q)
+          )
       const matchesCategory = category ? product.category === category : true
       return matchesSearch && matchesCategory
     })
@@ -113,6 +120,7 @@ export default function Products() {
   })
 
   const openModal = (product = null) => {
+    setSubmitted(false)
     if (product) {
       setForm({
         barcode: product.barcode || '',
@@ -137,15 +145,26 @@ export default function Products() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    setSubmitted(true)
 
     if (!form.barcode?.trim()) {
       toast.error('El código de barras es obligatorio')
       return
     }
 
+    // Check if barcode collides with an existing different product
+    const barcodeNorm = form.barcode.trim()
+    const collision = products.find(
+      p => String(p.barcode) === barcodeNorm && p.id !== editingProduct?.id
+    )
+    if (collision) {
+      toast.error(`El código ${barcodeNorm} ya pertenece a "${collision.name}"`)
+      return
+    }
+
     const payload = {
       ...form,
-      barcode: form.barcode.trim(),
+      barcode: barcodeNorm,
       current_stock: parseFloat(form.current_stock) || 0,
       min_stock: parseFloat(form.min_stock) || 0,
       purchase_price: parseFloat(form.purchase_price) || 0,
@@ -153,12 +172,16 @@ export default function Products() {
       expiration_date: form.expiration_date || null,
     }
 
-    if (editingProduct) {
-      await mutateUpdate.mutateAsync({ id: editingProduct.id, payload })
-    } else {
-      await mutateCreate.mutateAsync(payload)
+    try {
+      if (editingProduct) {
+        await mutateUpdate.mutateAsync({ id: editingProduct.id, payload })
+      } else {
+        await mutateCreate.mutateAsync(payload)
+      }
+      setShowModal(false)
+    } catch {
+      // error already shown by mutation's onError toast
     }
-    setShowModal(false)
   }
 
   const handleDelete = (product) => {
@@ -336,25 +359,25 @@ export default function Products() {
                     <p className="text-xs text-gray-500">{product.barcode || 'Sin código'}</p>
                   </td>
                   <td className="px-4 py-3">{product.category}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.current_stock <= product.min_stock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                    {product.current_stock} / {product.min_stock}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {(() => {
-                    const days = daysUntil(product.expiration_date)
-                    const label = formatExpiry(product.expiration_date)
-                    const tone = days === null ? 'text-gray-500' : days < 0 ? 'text-red-600' : days <= 7 ? 'text-amber-600' : 'text-emerald-700'
-                    return (
-                      <span className={`text-xs font-semibold ${tone}`}>
-                        {label} {days !== null ? `(${days < 0 ? 'vencido' : `en ${days}d`})` : ''}
-                      </span>
-                    )
-                  })()}
-                </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.current_stock <= product.min_stock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {product.current_stock} / {product.min_stock}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">{fmtMoney(product.purchase_price || 0)}</td>
                   <td className="px-4 py-3">{fmtMoney(product.sale_price || 0)}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const days = daysUntil(product.expiration_date)
+                      const label = formatExpiry(product.expiration_date)
+                      const tone = days === null ? 'text-gray-500' : days < 0 ? 'text-red-600' : days <= 7 ? 'text-amber-600' : 'text-emerald-700'
+                      return (
+                        <span className={`text-xs font-semibold ${tone}`}>
+                          {label} {days !== null ? `(${days < 0 ? 'vencido' : `en ${days}d`})` : ''}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td className="px-4 py-3">{margin.toFixed(1)}%</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-600'}`}>
@@ -400,7 +423,7 @@ export default function Products() {
                   placeholder="Ej: 7790310985113"
                   required
                 />
-                {!form.barcode?.trim() && (
+                {submitted && !form.barcode?.trim() && (
                   <p className="text-xs text-red-500">Campo obligatorio</p>
                 )}
               </div>

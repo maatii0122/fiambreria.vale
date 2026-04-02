@@ -26,14 +26,16 @@ const initialForm = () => ({
 
 export default function Expenses() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, role } = useAuth()
+  const isAdmin = role === 'admin'
+
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses'],
     queryFn: async () => {
       const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
       return data || []
     },
-    enabled: !!user,
+    enabled: !!user && isAdmin,
   })
 
   const [showModal, setShowModal] = useState(false)
@@ -153,12 +155,14 @@ export default function Expenses() {
           <h1 className="text-3xl font-bold">Gestión de gastos fijos y variables</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
-          >
-            Exportar Excel
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
+            >
+              Exportar Excel
+            </button>
+          )}
           <button
             onClick={openNewModal}
             className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold"
@@ -168,86 +172,95 @@ export default function Expenses() {
         </div>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="p-5 rounded-2xl bg-red-50">
-          <p className="text-sm text-red-500">Total Gastos</p>
-          <p className="text-2xl font-bold text-red-700">{fmtMoney(totalExpenses)}</p>
-        </div>
-        <div className="p-5 rounded-2xl bg-white border border-gray-100">
-          <p className="text-sm text-gray-500">Gastos Fijos</p>
-          <p className="text-2xl font-bold text-gray-900">{fmtMoney(fixedExpenses)}</p>
-        </div>
-        <div className="p-5 rounded-2xl bg-white border border-gray-100">
-          <p className="text-sm text-gray-500">Gastos Variables</p>
-          <p className="text-2xl font-bold text-gray-900">{fmtMoney(variableExpenses)}</p>
-        </div>
-      </div>
+      {isAdmin ? (
+        <>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="p-5 rounded-2xl bg-red-50">
+              <p className="text-sm text-red-500">Total Gastos</p>
+              <p className="text-2xl font-bold text-red-700">{fmtMoney(totalExpenses)}</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-gray-100">
+              <p className="text-sm text-gray-500">Gastos Fijos</p>
+              <p className="text-2xl font-bold text-gray-900">{fmtMoney(fixedExpenses)}</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-white border border-gray-100">
+              <p className="text-sm text-gray-500">Gastos Variables</p>
+              <p className="text-2xl font-bold text-gray-900">{fmtMoney(variableExpenses)}</p>
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <select
-          value={filterCat}
-          onChange={e => setFilterCat(e.target.value)}
-          className="border border-gray-200 rounded-full px-4 py-2 text-sm"
-        >
-          <option value="">Todas las categorías</option>
-          {EXPENSE_CATEGORIES.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-        <select
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-          className="border border-gray-200 rounded-full px-4 py-2 text-sm"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="fijo">Fijo</option>
-          <option value="variable">Variable</option>
-        </select>
-      </div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select
+              value={filterCat}
+              onChange={e => setFilterCat(e.target.value)}
+              className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+            >
+              <option value="">Todas las categorías</option>
+              {EXPENSE_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+            >
+              <option value="">Todos los tipos</option>
+              <option value="fijo">Fijo</option>
+              <option value="variable">Variable</option>
+            </select>
+          </div>
 
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
-              <th className="px-4 py-3">Fecha</th>
-              <th className="px-4 py-3">Descripción</th>
-              <th className="px-4 py-3">Categoría</th>
-              <th className="px-4 py-3">Tipo</th>
-              <th className="px-4 py-3">Monto</th>
-              <th className="px-4 py-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">Cargando gastos...</td>
-              </tr>
-            )}
-            {!isLoading && !filtered.length && (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay gastos registrados.</td>
-              </tr>
-            )}
-            {!isLoading && filtered.map(expense => (
-              <tr key={expense.id} className="border-t border-gray-100">
-                <td className="px-4 py-3">{formatDateOnlyART(expense.date)}</td>
-                <td className="px-4 py-3">{expense.description}</td>
-                <td className="px-4 py-3">{expense.category}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${expense.expense_type === 'fijo' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {TYPE_LABEL[expense.expense_type] || 'Variable'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 font-semibold">{fmtMoney(expense.amount)}</td>
-                <td className="px-4 py-3 flex gap-2">
-                  <button onClick={() => handleEdit(expense)} className="text-blue-600 hover:text-blue-900 text-sm">Editar</button>
-                  <button onClick={() => handleDelete(expense)} className="text-red-600 hover:text-red-900 text-sm">Eliminar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3">Descripción</th>
+                  <th className="px-4 py-3">Categoría</th>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Monto</th>
+                  <th className="px-4 py-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">Cargando gastos...</td>
+                  </tr>
+                )}
+                {!isLoading && !filtered.length && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">No hay gastos registrados.</td>
+                  </tr>
+                )}
+                {!isLoading && filtered.map(expense => (
+                  <tr key={expense.id} className="border-t border-gray-100">
+                    <td className="px-4 py-3">{formatDateOnlyART(expense.date)}</td>
+                    <td className="px-4 py-3">{expense.description}</td>
+                    <td className="px-4 py-3">{expense.category}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${expense.expense_type === 'fijo' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {TYPE_LABEL[expense.expense_type] || 'Variable'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold">{fmtMoney(expense.amount)}</td>
+                    <td className="px-4 py-3 flex gap-2">
+                      <button onClick={() => handleEdit(expense)} className="text-blue-600 hover:text-blue-900 text-sm">Editar</button>
+                      <button onClick={() => handleDelete(expense)} className="text-red-600 hover:text-red-900 text-sm">Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <div className="p-8 bg-white border border-gray-200 rounded-2xl text-center">
+          <p className="text-gray-500 text-sm">El historial de gastos es visible solo para administradores.</p>
+          <p className="text-gray-400 text-xs mt-1">Podés registrar nuevos gastos usando el botón de arriba.</p>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -12,10 +12,18 @@ import Expenses from '@/pages/Expenses'
 import Reports from '@/pages/Reports'
 import InvoiceScanner from '@/pages/InvoiceScanner'
 import Settings from '@/pages/Settings'
+import { useAuth } from '@/hooks/useAuth'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 2, retry: 1 } }
 })
+
+function AdminRoute() {
+  const { role, loading } = useAuth()
+  if (loading) return null
+  if (role !== 'admin') return <Navigate to="/pos" replace />
+  return <Outlet />
+}
 
 export default function App() {
   return (
@@ -31,9 +39,11 @@ export default function App() {
               <Route path="scanner" element={<InvoiceScanner />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="gastos" element={<Expenses />} />
-              <Route path="reportes" element={<Reports />} />
               <Route path="ventas" element={<Sales />} />
-              <Route path="config" element={<Settings />} />
+              <Route element={<AdminRoute />}>
+                <Route path="reportes" element={<Reports />} />
+                <Route path="config" element={<Settings />} />
+              </Route>
             </Route>
           </Route>
         </Routes>
