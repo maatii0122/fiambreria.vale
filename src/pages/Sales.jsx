@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 const PaymentBadge = ({ method }) => {
   const styles = {
     efectivo: 'bg-green-100 text-green-800',
-    transferencia: 'bg-blue-100 text-blue-800',
+    transferencia: 'bg-blue-100 text-zinc-800',
     qr: 'bg-purple-100 text-purple-800',
     tarjeta: 'bg-orange-100 text-orange-800',
   }
@@ -67,7 +67,7 @@ export default function Sales() {
         </div>
         <button
           onClick={handleExport}
-          className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
+          className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold"
         >
           Exportar Excel
         </button>
@@ -79,15 +79,15 @@ export default function Sales() {
           placeholder="Buscar por número de venta o cajero..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full md:w-72 border border-gray-200 rounded-full px-4 py-2 text-sm"
+          className="w-full md:w-72 border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
         />
         <div className="text-sm text-gray-500">Mostrando {filtered.length} registros</div>
       </div>
 
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+      <div className="overflow-x-auto bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+            <tr className="text-xs uppercase tracking-[0.08em] text-zinc-400 border-b border-zinc-100">
               <th className="px-4 py-3">N° Venta</th>
               <th className="px-4 py-3">Fecha</th>
               <th className="px-4 py-3">Cajero</th>

@@ -297,7 +297,7 @@ export default function POSv2() {
       <div className="min-h-[70vh] flex items-center justify-center">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center space-y-1">
-            <div className="w-14 h-14 rounded-2xl bg-blue-900 text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-zinc-900 text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               {(displayName || 'U')[0].toUpperCase()}
             </div>
             <p className="text-sm text-gray-500 uppercase tracking-widest">Bienvenido</p>
@@ -318,13 +318,13 @@ export default function POSv2() {
                   onChange={e => setMontoInicial(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && startTurno()}
                   placeholder="0,00"
-                  className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                  className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-900"
                 />
               </div>
             </div>
             <button
               onClick={startTurno}
-              className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors"
+              className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold rounded-xl transition-colors"
             >
               Iniciar turno
             </button>
@@ -390,7 +390,7 @@ export default function POSv2() {
                 type="number"
                 value={realCashCount}
                 onChange={e => setRealCashCount(e.target.value)}
-                className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                className="w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-900"
                 placeholder="0,00"
               />
             </div>
@@ -407,13 +407,13 @@ export default function POSv2() {
               value={observations}
               onChange={e => setObservations(e.target.value)}
               rows={2}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 resize-none"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-900 resize-none"
             />
           </div>
 
           <button
             onClick={handleConfirmCierre}
-            className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold rounded-xl transition-colors"
           >
             Confirmar cierre
           </button>
@@ -465,7 +465,7 @@ export default function POSv2() {
 
         <button
           onClick={resetTurno}
-          className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-xl transition-colors"
+          className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold rounded-xl transition-colors"
         >
           Abrir nuevo turno
         </button>
@@ -478,17 +478,17 @@ export default function POSv2() {
     <>
     <div className="space-y-4">
       {/* Header bar */}
-      <div className="bg-blue-900 text-white rounded-2xl flex items-center justify-between px-5 py-3">
+      <div className="bg-zinc-900 text-white rounded-2xl flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
             {(turno?.cajero || 'C')[0].toUpperCase()}
           </div>
           <div>
             <p className="text-sm font-semibold leading-tight">{turno?.cajero}</p>
-            <p className="text-xs text-blue-300">{turnoSales.length} ventas · {fmtMoney(turnoSales.reduce((s, x) => s + (x.total || 0), 0))}</p>
+            <p className="text-xs text-zinc-300">{turnoSales.length} ventas · {fmtMoney(turnoSales.reduce((s, x) => s + (x.total || 0), 0))}</p>
           </div>
         </div>
-        <p className="font-mono text-sm text-blue-200 hidden sm:block">{formatDateTimeART(liveTime)}</p>
+        <p className="font-mono text-sm text-zinc-200 hidden sm:block">{formatDateTimeART(liveTime)}</p>
         <button
           onClick={() => setScreen('cierre')}
           className="px-4 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-sm font-semibold transition-colors"
@@ -527,7 +527,7 @@ export default function POSv2() {
                   }
                 }}
                 placeholder="Buscar o escanear código…"
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-900"
               />
             </div>
           </div>
@@ -536,7 +536,7 @@ export default function POSv2() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setCategoryFilter('')}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${!categoryFilter ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${!categoryFilter ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               Todos
             </button>
@@ -544,7 +544,7 @@ export default function POSv2() {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(prev => prev === cat ? '' : cat)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${categoryFilter === cat ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${categoryFilter === cat ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 {cat}
               </button>
@@ -580,16 +580,16 @@ export default function POSv2() {
                     disabled
                       ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50'
                       : inCart
-                        ? 'border-blue-900 bg-blue-50 shadow-sm'
+                        ? 'border-zinc-900 bg-zinc-50 shadow-sm'
                         : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'
                   }`}
                 >
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider truncate">{product.category}</p>
                   <p className="text-sm font-semibold text-gray-900 mt-0.5 leading-tight line-clamp-2">{product.name}</p>
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-sm font-bold text-blue-900">{fmtMoney(product.sale_price)}</p>
+                    <p className="text-sm font-bold text-zinc-900">{fmtMoney(product.sale_price)}</p>
                     {inCart
-                      ? <span className="text-xs font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded-full">×{inCart.quantity}</span>
+                      ? <span className="text-xs font-bold text-zinc-900 bg-blue-100 px-2 py-0.5 rounded-full">×{inCart.quantity}</span>
                       : <span className="text-[10px] text-gray-400">stock {product.current_stock}</span>
                     }
                   </div>
@@ -671,10 +671,10 @@ export default function POSv2() {
                 <p className="text-xs text-gray-500">{completedSale.sale_number}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setCompletedSale(null)} className="py-2 text-sm font-semibold border border-blue-900 text-blue-900 rounded-xl hover:bg-blue-50 transition-colors">
+                <button onClick={() => setCompletedSale(null)} className="py-2 text-sm font-semibold border border-zinc-900 text-zinc-900 rounded-xl hover:bg-zinc-50 transition-colors">
                   Nueva venta
                 </button>
-                <button onClick={() => window.print()} className="py-2 text-sm font-semibold bg-blue-900 text-white rounded-xl hover:bg-blue-800 flex items-center justify-center gap-1 transition-colors">
+                <button onClick={() => window.print()} className="py-2 text-sm font-semibold bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 flex items-center justify-center gap-1 transition-colors">
                   <Printer className="w-3 h-3" /> Imprimir
                 </button>
               </div>
@@ -689,7 +689,7 @@ export default function POSv2() {
                     onClick={() => setPaymentMethod(method)}
                     className={`py-2 px-2 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${
                       paymentMethod === method
-                        ? 'bg-blue-900 text-white'
+                        ? 'bg-zinc-900 text-white'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-100'
                     }`}
                   >
@@ -708,7 +708,7 @@ export default function POSv2() {
               <button
                 onClick={handleConfirmSale}
                 disabled={!cart.length || completeSaleMutation.isPending}
-                className="w-full py-3 rounded-xl text-white font-semibold bg-blue-900 hover:bg-blue-800 disabled:opacity-40 flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-3 rounded-xl text-white font-semibold bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 flex items-center justify-center gap-2 transition-colors"
               >
                 {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                 Confirmar venta
@@ -725,7 +725,7 @@ export default function POSv2() {
         onClick={() => setShowMobileCart(true)}
         className={`w-full py-4 rounded-2xl font-bold flex items-center justify-between px-5 shadow-xl transition-all ${
           cart.length > 0
-            ? 'bg-blue-900 text-white'
+            ? 'bg-zinc-900 text-white'
             : 'bg-gray-100 text-gray-400 pointer-events-none'
         }`}
       >
@@ -757,7 +757,7 @@ export default function POSv2() {
             onChange={e => setFiadoCustomer(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleConfirmFiado()}
             placeholder="Nombre del cliente"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-900"
           />
           <div className="flex gap-2">
             <button
@@ -769,7 +769,7 @@ export default function POSv2() {
             <button
               onClick={handleConfirmFiado}
               disabled={!fiadoCustomer.trim() || completeSaleMutation.isPending}
-              className="flex-1 py-2.5 bg-blue-900 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 disabled:opacity-40 flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 disabled:opacity-40 flex items-center justify-center gap-2"
             >
               {completeSaleMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Confirmar fiado

@@ -149,7 +149,7 @@ Si no hay precio de venta en la factura, calculá un 40% de margen sobre el prec
           <button
             onClick={handleProcess}
             disabled={!file || processing}
-            className="w-full h-12 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            className="w-full h-12 bg-zinc-800 hover:bg-zinc-900 disabled:opacity-50 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
             {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
             {processing ? 'Procesando con IA...' : 'Procesar con IA'}
@@ -169,7 +169,7 @@ Si no hay precio de venta en la factura, calculá un 40% de margen sobre el prec
             </div>
           </div>
           {!items.length && (
-            <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800 space-y-1">
+            <div className="bg-zinc-50 rounded-xl p-4 text-sm text-zinc-800 space-y-1">
               <div className="font-medium">¿Cómo funciona?</div>
               <div>1. Subí una foto clara de tu factura de proveedor</div>
               <div>2. La IA lee productos, códigos de barra y precios</div>
@@ -184,14 +184,14 @@ Si no hay precio de venta en la factura, calculá un 40% de margen sobre el prec
         <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">{items.length} producto(s) extraídos</h2>
-            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white text-sm font-medium rounded-lg transition-colors">
+            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-900 text-white text-sm font-medium rounded-lg transition-colors">
               <Download className="w-4 h-4" /> Descargar Excel
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-blue-900 text-white text-left">
+                <tr className="bg-zinc-900 text-white text-left">
                   {['Código', 'Nombre', 'Cantidad', 'P. Compra', 'P. Venta', 'Estado'].map(header => (
                     <th key={header} className="px-3 py-2 font-medium text-xs uppercase tracking-wide">{header}</th>
                   ))}
@@ -199,7 +199,7 @@ Si no hay precio de venta en la factura, calculá un 40% de margen sobre el prec
               </thead>
               <tbody>
                 {items.map((item, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'}>
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-zinc-50' : 'bg-white'}>
                     <td className="px-3 py-2">
                       <input value={item.barcode || ''} onChange={e => updateItem(idx, 'barcode', e.target.value)} className="w-full bg-transparent border-b border-gray-200 focus:border-blue-400 focus:outline-none text-xs" />
                     </td>

@@ -121,9 +121,9 @@ export default function Reports() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex gap-1">
-            <button onClick={() => handleModeChange('week')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'week' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Esta semana</button>
-            <button onClick={() => handleModeChange('month')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'month' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Este mes</button>
-            <button onClick={() => handleModeChange('custom')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'custom' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Mes específico</button>
+            <button onClick={() => handleModeChange('week')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'week' ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Esta semana</button>
+            <button onClick={() => handleModeChange('month')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'month' ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Este mes</button>
+            <button onClick={() => handleModeChange('custom')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'custom' ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Mes específico</button>
           </div>
           {periodMode === 'custom' && (
             <div className="flex gap-2">
@@ -150,10 +150,10 @@ export default function Reports() {
         </div>
       )}
       {suggestedPromotion && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col gap-4">
+        <div className="bg-zinc-50 border border-blue-100 rounded-2xl p-5 flex flex-col gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-blue-500">Consejo experto</p>
-            <p className="text-lg font-semibold text-blue-900">{suggestedPromotion.name}</p>
+            <p className="text-lg font-semibold text-zinc-900">{suggestedPromotion.name}</p>
             <p className="text-sm text-blue-700 mt-1">{suggestedPromotion.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -161,7 +161,7 @@ export default function Reports() {
               <span key={name} className="px-3 py-1 rounded-full border border-blue-200 bg-white text-xs font-semibold text-blue-600">{name}</span>
             ))}
           </div>
-          <button onClick={handleCreatePromotion} className="self-start px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">
+          <button onClick={handleCreatePromotion} className="self-start px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
             Crear promoción
           </button>
         </div>
@@ -174,7 +174,7 @@ export default function Reports() {
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-1">
           <p className="text-xs uppercase tracking-[0.4em] text-gray-400">Ganancia Bruta</p>
-          <p className="text-xl font-semibold text-blue-900">{fmtMoney(totalProfit)}</p>
+          <p className="text-xl font-semibold text-zinc-900">{fmtMoney(totalProfit)}</p>
           <p className="text-sm text-gray-500">Margen {totalRevenue ? `${Math.round(totalProfit / totalRevenue * 100)}%` : '0%'}</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-1">
@@ -192,9 +192,9 @@ export default function Reports() {
       <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
         <div className="text-sm text-gray-500">Comparativa</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
-          <div className="p-4 rounded-2xl bg-blue-50">
+          <div className="p-4 rounded-2xl bg-zinc-50">
             <p className="text-xs uppercase tracking-[0.4em] text-blue-500">Mes actual</p>
-            <p className="text-2xl font-semibold text-blue-900">{fmtMoney(totalRevenue)}</p>
+            <p className="text-2xl font-semibold text-zinc-900">{fmtMoney(totalRevenue)}</p>
             <p className="text-sm text-blue-600">{revenueLabel}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gray-50">
@@ -284,7 +284,7 @@ export default function Reports() {
             {canasta.map(entry => (
               <div key={entry.pair} className="py-3 flex justify-between text-sm">
                 <p>{entry.pair}</p>
-                <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full">{entry.count} veces</span>
+                <span className="text-xs px-2 py-1 bg-zinc-50 text-blue-700 rounded-full">{entry.count} veces</span>
               </div>
             ))}
           </div>
@@ -298,7 +298,7 @@ export default function Reports() {
             {cajeroStats.map((cajero, i) => (
               <div key={cajero.name} className="py-3 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-900 text-xs font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-full bg-blue-100 text-zinc-900 text-xs font-bold flex items-center justify-center">
                     {i + 1}
                   </span>
                   <div>

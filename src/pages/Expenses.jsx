@@ -158,7 +158,7 @@ export default function Expenses() {
           {isAdmin && (
             <button
               onClick={handleExport}
-              className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
+              className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold"
             >
               Exportar Excel
             </button>
@@ -193,7 +193,7 @@ export default function Expenses() {
             <select
               value={filterCat}
               onChange={e => setFilterCat(e.target.value)}
-              className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+              className="border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
             >
               <option value="">Todas las categorías</option>
               {EXPENSE_CATEGORIES.map(cat => (
@@ -203,7 +203,7 @@ export default function Expenses() {
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
-              className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+              className="border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
             >
               <option value="">Todos los tipos</option>
               <option value="fijo">Fijo</option>
@@ -211,10 +211,10 @@ export default function Expenses() {
             </select>
           </div>
 
-          <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+          <div className="overflow-x-auto bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+                <tr className="text-xs uppercase tracking-[0.08em] text-zinc-400 border-b border-zinc-100">
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Descripción</th>
                   <th className="px-4 py-3">Categoría</th>
@@ -240,13 +240,13 @@ export default function Expenses() {
                     <td className="px-4 py-3">{expense.description}</td>
                     <td className="px-4 py-3">{expense.category}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${expense.expense_type === 'fijo' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${expense.expense_type === 'fijo' ? 'bg-blue-100 text-zinc-800' : 'bg-emerald-100 text-emerald-800'}`}>
                         {TYPE_LABEL[expense.expense_type] || 'Variable'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-semibold">{fmtMoney(expense.amount)}</td>
                     <td className="px-4 py-3 flex gap-2">
-                      <button onClick={() => handleEdit(expense)} className="text-blue-600 hover:text-blue-900 text-sm">Editar</button>
+                      <button onClick={() => handleEdit(expense)} className="text-blue-600 hover:text-zinc-900 text-sm">Editar</button>
                       <button onClick={() => handleDelete(expense)} className="text-red-600 hover:text-red-900 text-sm">Eliminar</button>
                     </td>
                   </tr>
@@ -330,7 +330,7 @@ export default function Expenses() {
               </button>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm font-semibold"
+                className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold"
               >
                 Guardar
               </button>

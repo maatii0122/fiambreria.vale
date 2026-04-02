@@ -261,7 +261,7 @@ export default function Purchases() {
         <button onClick={handleExport} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold">
           Exportar Excel
           </button>
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold">
+          <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
             Nueva compra
           </button>
       </div>
@@ -288,10 +288,10 @@ export default function Purchases() {
       </div>
     )}
 
-    <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+    <div className="overflow-x-auto bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+            <tr className="text-xs uppercase tracking-[0.08em] text-zinc-400 border-b border-zinc-100">
               <th className="px-4 py-3">Fecha</th>
               <th className="px-4 py-3">Proveedor</th>
               <th className="px-4 py-3">N° Factura</th>
@@ -387,7 +387,7 @@ export default function Purchases() {
                           expiration_date: '',
                         }])
                       }}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-left text-xs hover:border-blue-900"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-left text-xs hover:border-zinc-900"
                   >
                     <div className="font-semibold">{prod.name}</div>
                     <div className="text-gray-500">{prod.category}</div>
@@ -445,7 +445,7 @@ export default function Purchases() {
             </div>
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-full text-sm font-semibold">Cancelar</button>
-              <button onClick={() => createMutation.mutate()} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm font-semibold">Registrar compra</button>
+              <button onClick={() => createMutation.mutate()} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold">Registrar compra</button>
             </div>
           </div>
         </div>

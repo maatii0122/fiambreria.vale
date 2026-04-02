@@ -84,22 +84,22 @@ export default function Dashboard() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="text-sm font-semibold text-gray-500">Ventas Hoy</p>
           <p className="text-3xl font-bold mt-2">{todaySales.length}</p>
           <p className="text-sm text-gray-500">{isAdmin ? fmtMoney(todayRevenue) : '—'}</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="text-sm font-semibold text-gray-500">Ingresos Hoy</p>
           <p className="text-3xl font-bold mt-2">{isAdmin ? fmtMoney(todayRevenue) : '•••'}</p>
           <p className="text-xs text-gray-500 mt-1">Ganancia: {isAdmin ? fmtMoney(todayProfit) : '•••'}</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="text-sm font-semibold text-gray-500">Mes Actual</p>
           <p className="text-3xl font-bold mt-2">{isAdmin ? fmtMoney(monthRevenue) : '•••'}</p>
           <p className="text-xs text-gray-500 mt-1">Semana: {isAdmin ? fmtMoney(weekRevenue) : '•••'}</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <p className="text-sm font-semibold text-gray-500">Stock Bajo</p>
           <p className={`text-3xl font-bold mt-2 ${lowStockProducts.length > 0 ? 'text-amber-600' : 'text-gray-900'}`}>{lowStockProducts.length}</p>
           {lowStockProducts.length > 0 && <p className="text-xs text-amber-600">Revisar inventario</p>}
@@ -108,14 +108,14 @@ export default function Dashboard() {
 
       {isAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
             <p className="text-sm font-semibold text-gray-500">Ganancia Mensual</p>
             <p className={`text-3xl font-bold mt-2 ${netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {fmtMoney(netProfit)}
             </p>
             <p className="text-xs text-gray-500 mt-1">Incluye {fmtMoney(monthExpTotal)} en gastos</p>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
             <p className="text-sm font-semibold text-gray-500">Productos con stock bajo</p>
             {lowStockProducts.length === 0 ? (
               <p className="text-sm mt-3 text-gray-500">Todo en rango</p>

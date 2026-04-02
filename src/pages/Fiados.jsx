@@ -100,7 +100,7 @@ export default function Fiados() {
             key={key}
             onClick={() => setFilter(key)}
             className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-              filter === key ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              filter === key ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             {label}
@@ -121,7 +121,7 @@ export default function Fiados() {
         {filtered.map(fiado => {
           const isExpanded = expandedId === fiado.id
           return (
-            <div key={fiado.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div key={fiado.id} className="bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
               <div className="flex items-center gap-3 p-4">
                 {/* Status indicator */}
                 <div className={`w-2 h-10 rounded-full shrink-0 ${fiado.status === 'pendiente' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
@@ -193,7 +193,7 @@ export default function Fiados() {
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest">Cobrar fiado</p>
               <h3 className="text-xl font-bold mt-1">{payModal.customer_name}</h3>
-              <p className="text-2xl font-bold text-blue-900 mt-1">{fmtMoney(payModal.amount)}</p>
+              <p className="text-2xl font-bold text-zinc-900 mt-1">{fmtMoney(payModal.amount)}</p>
             </div>
 
             <div>
@@ -208,7 +208,7 @@ export default function Fiados() {
                     onClick={() => setPayMethod(key)}
                     className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
                       payMethod === key
-                        ? 'bg-blue-900 text-white'
+                        ? 'bg-zinc-900 text-white'
                         : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100'
                     }`}
                   >

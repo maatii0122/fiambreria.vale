@@ -283,7 +283,7 @@ export default function Products() {
           </button>
           <button
             onClick={handleExport}
-            className="px-4 py-2 rounded-full bg-blue-900 text-white text-sm font-semibold"
+            className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold"
           >
             Exportar Excel
           </button>
@@ -318,9 +318,9 @@ export default function Products() {
       {promotionsWithDetails.length > 0 && (
         <div className="grid gap-3 md:grid-cols-2">
           {promotionsWithDetails.map(promo => (
-            <div key={promo.id} className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-2">
+            <div key={promo.id} className="bg-zinc-50 border border-blue-100 rounded-2xl p-4 space-y-2">
               <p className="text-xs uppercase tracking-[0.4em] text-blue-500">Promoción sugerida</p>
-              <p className="text-lg font-semibold text-blue-900">{promo.name}</p>
+              <p className="text-lg font-semibold text-zinc-900">{promo.name}</p>
               <p className="text-sm text-blue-700">{promo.description}</p>
               <div className="flex flex-wrap gap-2">
                 {promo.items.map(item => (
@@ -332,10 +332,10 @@ export default function Products() {
         </div>
       )}
 
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-2xl shadow-sm">
+      <div className="overflow-x-auto bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
         <table className="w-full text-left text-sm">
           <thead>
-              <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+              <tr className="text-xs uppercase tracking-[0.08em] text-zinc-400 border-b border-zinc-100">
                 <th className="px-4 py-3">Producto</th>
                 <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3">Stock</th>
@@ -385,7 +385,7 @@ export default function Products() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right space-x-2">
-                    <button onClick={() => openModal(product)} className="text-blue-600 hover:text-blue-900">
+                    <button onClick={() => openModal(product)} className="text-blue-600 hover:text-zinc-900">
                       <PencilLine className="inline w-4 h-4" />
                     </button>
                     <button onClick={() => handleDelete(product)} className="text-red-600 hover:text-red-900">
@@ -491,7 +491,7 @@ export default function Products() {
               <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-full text-sm font-semibold">
                 Cancelar
               </button>
-              <button type="submit" disabled={mutateCreate.isLoading || mutateUpdate.isLoading} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm font-semibold">
+              <button type="submit" disabled={mutateCreate.isLoading || mutateUpdate.isLoading} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold">
                 Guardar
               </button>
             </div>

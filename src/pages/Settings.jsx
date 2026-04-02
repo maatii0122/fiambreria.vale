@@ -201,7 +201,7 @@ export default function Settings() {
           <button
             onClick={handleInvite}
             disabled={inviting}
-            className="px-5 h-11 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
+            className="px-5 h-11 bg-zinc-800 hover:bg-zinc-900 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
           >
             {inviting && <Loader2 className="w-4 h-4 animate-spin" />} Crear usuario
           </button>
@@ -215,7 +215,7 @@ export default function Settings() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs uppercase tracking-wider text-gray-500 bg-gray-50">
+                <tr className="text-xs uppercase tracking-[0.08em] text-zinc-400 border-b border-zinc-100">
                   <th className="px-4 py-2">Email</th>
                   <th className="px-4 py-2">Rol</th>
                   <th className="px-4 py-2">Creado</th>
@@ -246,8 +246,8 @@ export default function Settings() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Database className="w-4 h-4" /> Resumen de la base</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[{ label: 'Productos', count: products.length, color: 'bg-blue-50 text-blue-700' },
-            { label: 'Ventas', count: sales.length, color: 'bg-blue-50 text-blue-700' },
+          {[{ label: 'Productos', count: products.length, color: 'bg-zinc-50 text-blue-700' },
+            { label: 'Ventas', count: sales.length, color: 'bg-zinc-50 text-blue-700' },
             { label: 'Compras', count: purchases.length, color: 'bg-purple-50 text-purple-700' },
             { label: 'Gastos', count: expenses.length, color: 'bg-amber-50 text-amber-700' }].map(({ label, count, color }) => (
             <div key={label} className={`${color} rounded-xl p-3 text-center`}>
@@ -262,10 +262,10 @@ export default function Settings() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Download className="w-4 h-4" /> Exportar base de datos</h2>
         <p className="text-sm text-gray-500 mb-4">Descargá un Excel con productos, ventas, compras y gastos.</p>
-        <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800 mb-4">
+        <div className="bg-zinc-50 rounded-lg p-3 text-sm text-zinc-800 mb-4">
           El archivo contiene 4 hojas compatibles con Excel, Sheets y LibreOffice.
         </div>
-        <button onClick={handleExport} disabled={exporting} className="flex items-center gap-2 px-6 h-11 bg-blue-800 hover:bg-blue-900 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
+        <button onClick={handleExport} disabled={exporting} className="flex items-center gap-2 px-6 h-11 bg-zinc-800 hover:bg-zinc-900 disabled:opacity-50 text-white font-medium rounded-xl transition-colors">
           {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           {exporting ? 'Exportando...' : 'Descargar copia de seguridad'}
         </button>

@@ -22,52 +22,64 @@ export default function Layout() {
   const visibleNav = NAV_ITEMS.filter(item => !item.adminOnly || role === 'admin')
 
   const linkClass = ({ isActive }) =>
-    `px-3 py-2 rounded-full text-sm font-semibold transition-colors ${
-      isActive ? 'bg-white text-blue-900' : 'text-blue-200 hover:text-white hover:bg-blue-800'
+    `px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 ${
+      isActive
+        ? 'bg-zinc-900 text-white'
+        : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
     }`
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-900 text-white border-b border-blue-800 fixed inset-x-0 top-0 z-50">
-        <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="font-semibold tracking-[0.3em]">Fiambrerías Vale</div>
-          <nav className="hidden md:flex gap-2">
+    <div className="min-h-screen bg-[#F5F5F7]">
+      <header className="bg-white/85 backdrop-blur-xl border-b border-zinc-200/60 fixed inset-x-0 top-0 z-50">
+        <div className="max-w-[1200px] mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div className="text-sm font-semibold tracking-[0.15em] text-zinc-900 shrink-0">
+            VALE
+          </div>
+          <nav className="hidden md:flex gap-1 flex-1 justify-center">
             {visibleNav.map(({ to, label }) => (
               <NavLink key={to} to={to} className={linkClass}>
                 {label}
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={logout}
-              className="hidden md:inline-flex px-4 py-1 bg-white text-blue-700 rounded-full text-sm font-semibold"
+              className="hidden md:inline-flex px-3 py-1.5 border border-zinc-200 text-zinc-700 rounded-full text-sm font-medium hover:bg-zinc-50 transition-colors"
             >
-              Cambiar usuario
+              Salir
             </button>
             <button
               type="button"
               onClick={() => setMobileOpen((prev) => !prev)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white text-white md:hidden"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-700 md:hidden transition-colors"
               aria-label="Abrir menú"
             >
-              <span className="w-5 h-5 flex flex-col justify-between">
-                <span className="block h-[2px] w-full bg-white" />
-                <span className="block h-[2px] w-full bg-white" />
-                <span className="block h-[2px] w-full bg-white" />
-              </span>
+              {mobileOpen ? (
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
         {mobileOpen && (
-          <nav className="md:hidden bg-blue-900 border-t border-blue-800">
-            <div className="px-4 py-3 flex flex-col gap-2">
+          <nav className="md:hidden bg-white border-t border-zinc-100">
+            <div className="px-4 py-3 flex flex-col gap-1">
               {visibleNav.map(({ to, label }) => (
                 <NavLink
                   key={to}
                   to={to}
-                  className="text-white text-sm font-semibold px-3 py-2 rounded-lg bg-blue-800/70 hover:bg-white/10"
+                  className={({ isActive }) =>
+                    `px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      isActive ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-100'
+                    }`
+                  }
                   onClick={() => setMobileOpen(false)}
                 >
                   {label}
@@ -76,15 +88,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={logout}
-                className="text-sm font-semibold text-white border border-white rounded-full px-3 py-2"
+                className="mt-2 text-sm font-medium text-zinc-500 border border-zinc-200 rounded-xl px-4 py-2.5 hover:bg-zinc-50 text-left transition-colors"
               >
-                Cambiar usuario
+                Salir
               </button>
             </div>
           </nav>
         )}
       </header>
-      <main className="max-w-[1200px] mx-auto px-4 py-6 pt-24">
+      <main className="max-w-[1200px] mx-auto px-4 py-6 pt-20">
         <Outlet />
       </main>
     </div>
