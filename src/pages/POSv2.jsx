@@ -6,10 +6,11 @@ import { formatDateTimeART, fmtMoney, nowART } from '@/components/argentina'
 import { Loader2, Printer, Plus, Minus, X, ShoppingCart, Search, Clock } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
+import Receipt from '@/components/pos/Receipt'
 
-const PAYMENT_METHODS = ['efectivo', 'transferencia', 'qr', 'tarjeta']
-const PAYMENT_LABELS = { efectivo: 'Efectivo', transferencia: 'Transf.', qr: 'QR', tarjeta: 'Tarjeta' }
-const PAYMENT_ICONS  = { efectivo: '💵', transferencia: '🏦', qr: '📱', tarjeta: '💳' }
+const PAYMENT_METHODS = ['efectivo', 'transferencia', 'qr', 'tarjeta', 'fiado']
+const PAYMENT_LABELS = { efectivo: 'Efectivo', transferencia: 'Transf.', qr: 'QR', tarjeta: 'Tarjeta', fiado: 'Fiado' }
+const PAYMENT_ICONS  = { efectivo: '💵', transferencia: '🏦', qr: '📱', tarjeta: '💳', fiado: '📋' }
 const STORAGE_KEY = 'fiambrerias-turno'
 
 export default function POSv2() {
@@ -24,6 +25,10 @@ export default function POSv2() {
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [completedSale, setCompletedSale] = useState(null)
+  const [fiadoCustomer, setFiadoCustomer] = useState('')
+  const [showFiadoModal, setShowFiadoModal] = useState(false)
+  const [pendingSale, setPendingSale] = useState(null)
+  const fiadoInputRef = useRef(null)
   const [liveTime, setLiveTime] = useState(nowART())
   const [realCashCount, setRealCashCount] = useState('')
   const [observations, setObservations] = useState('')
@@ -147,15 +152,27 @@ export default function POSv2() {
   const removeFromCart = (productId) => setCart(prev => prev.filter(i => i.product_id !== productId))
 
   const completeSaleMutation = useMutation({
-    mutationFn: async ({ cartItems, total, method }) => {
+    mutationFn: async ({ cartItems, total, method, customerName }) => {
       const { data: sale, error } = await supabase.from('sales').insert({
         sale_number: `V-${Date.now()}`,
         items: cartItems,
         total,
         payment_method: method,
         cashier: turno.cajero,
+        notes: customerName ? `Fiado: ${customerName}` : null,
       }).select().single()
       if (error) throw error
+
+      if (method === 'fiado') {
+        await supabase.from('fiados').insert({
+          sale_id: sale.id,
+          customer_name: customerName,
+          amount: total,
+          items: cartItems,
+          status: 'pendiente',
+        })
+      }
+
       for (const item of cartItems) {
         const prod = products.find(p => p.id === item.product_id)
         if (prod) {
@@ -167,9 +184,13 @@ export default function POSv2() {
     onSuccess: (sale) => {
       queryClient.invalidateQueries({ queryKey: ['products'] })
       queryClient.invalidateQueries({ queryKey: ['sales'] })
+      queryClient.invalidateQueries({ queryKey: ['fiados'] })
       setCompletedSale(sale)
       setCart([])
       setPaymentMethod('efectivo')
+      setFiadoCustomer('')
+      setShowFiadoModal(false)
+      setPendingSale(null)
       toast.success('Venta registrada')
     },
     onError: () => toast.error('Error al registrar la venta'),
@@ -178,7 +199,24 @@ export default function POSv2() {
   const handleConfirmSale = () => {
     if (!cart.length || !turno) return
     const total = cart.reduce((sum, item) => sum + item.subtotal, 0)
-    completeSaleMutation.mutate({ cartItems: cart, total, method: paymentMethod })
+    const cartItems = [...cart]
+    if (paymentMethod === 'fiado') {
+      setPendingSale({ cartItems, total })
+      setShowFiadoModal(true)
+      setTimeout(() => fiadoInputRef.current?.focus(), 100)
+      return
+    }
+    completeSaleMutation.mutate({ cartItems, total, method: paymentMethod })
+  }
+
+  const handleConfirmFiado = () => {
+    if (!fiadoCustomer.trim()) { toast.error('Escribí el nombre del cliente'); return }
+    completeSaleMutation.mutate({
+      cartItems: pendingSale.cartItems,
+      total: pendingSale.total,
+      method: 'fiado',
+      customerName: fiadoCustomer.trim(),
+    })
   }
 
   const handleApplyPromotion = (promo) => {
@@ -245,6 +283,9 @@ export default function POSv2() {
     setRealCashCount('')
     setObservations('')
     setClosingSummary(null)
+    setFiadoCustomer('')
+    setShowFiadoModal(false)
+    setPendingSale(null)
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -615,7 +656,7 @@ export default function POSv2() {
                 <button onClick={() => setCompletedSale(null)} className="py-2 text-sm font-semibold border border-blue-900 text-blue-900 rounded-xl hover:bg-blue-50 transition-colors">
                   Nueva venta
                 </button>
-                <button onClick={() => toast('Enviando a impresora...')} className="py-2 text-sm font-semibold bg-blue-900 text-white rounded-xl hover:bg-blue-800 flex items-center justify-center gap-1 transition-colors">
+                <button onClick={() => window.print()} className="py-2 text-sm font-semibold bg-blue-900 text-white rounded-xl hover:bg-blue-800 flex items-center justify-center gap-1 transition-colors">
                   <Printer className="w-3 h-3" /> Imprimir
                 </button>
               </div>
@@ -659,5 +700,47 @@ export default function POSv2() {
         </div>
       </div>
     </div>
+
+    {/* Receipt hidden in DOM — revealed by @media print */}
+    <div className="hidden print:block">
+      <Receipt sale={completedSale} />
+    </div>
+
+    {/* Fiado modal */}
+    {showFiadoModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-widest">Venta a fiado</p>
+            <h3 className="text-xl font-bold mt-1">¿A nombre de quién?</h3>
+            <p className="text-sm text-gray-500 mt-1">Total: <span className="font-semibold text-gray-900">{fmtMoney(pendingSale?.total || 0)}</span></p>
+          </div>
+          <input
+            ref={fiadoInputRef}
+            value={fiadoCustomer}
+            onChange={e => setFiadoCustomer(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleConfirmFiado()}
+            placeholder="Nombre del cliente"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowFiadoModal(false); setPendingSale(null); setFiadoCustomer('') }}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmFiado}
+              disabled={!fiadoCustomer.trim() || completeSaleMutation.isLoading}
+              className="flex-1 py-2.5 bg-blue-900 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {completeSaleMutation.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirmar fiado
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }

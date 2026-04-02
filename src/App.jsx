@@ -12,6 +12,7 @@ import Expenses from '@/pages/Expenses'
 import Reports from '@/pages/Reports'
 import InvoiceScanner from '@/pages/InvoiceScanner'
 import Settings from '@/pages/Settings'
+import Fiados from '@/pages/Fiados'
 import { useAuth } from '@/hooks/useAuth'
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="gastos" element={<Expenses />} />
               <Route path="ventas" element={<Sales />} />
+              <Route path="fiados" element={<Fiados />} />
               <Route element={<AdminRoute />}>
                 <Route path="reportes" element={<Reports />} />
                 <Route path="config" element={<Settings />} />
