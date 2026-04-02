@@ -13,47 +13,57 @@ const isAdminEmail = (email) => {
 
 const ROLE_CACHE_KEY = 'fiambrerias-role-cache'
 
-function getCachedRole(userId) {
+function getCached(userId) {
   try {
     const stored = sessionStorage.getItem(ROLE_CACHE_KEY)
     if (!stored) return null
     const parsed = JSON.parse(stored)
-    if (parsed.userId === userId) return parsed.role
+    if (parsed.userId === userId) return parsed
   } catch {}
   return null
 }
 
-function setCachedRole(userId, role) {
+function setCache(userId, role, displayName) {
   try {
-    sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ userId, role }))
+    sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ userId, role, displayName }))
   } catch {}
 }
 
-function clearCachedRole() {
+function clearCache() {
   try {
     sessionStorage.removeItem(ROLE_CACHE_KEY)
   } catch {}
 }
 
-async function resolveRole(userId, email) {
-  const cached = getCachedRole(userId)
-  if (cached) return cached
+function emailToName(email) {
+  if (!email) return 'Usuario'
+  const local = email.split('@')[0]
+  // capitalize first segment before dot or number
+  const first = local.split(/[._0-9]/)[0]
+  return first.charAt(0).toUpperCase() + first.slice(1)
+}
+
+async function resolveProfile(userId, email) {
+  const cached = getCached(userId)
+  if (cached?.role) return { role: cached.role, displayName: cached.displayName || emailToName(email) }
 
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('role')
+      .select('role, username')
       .eq('id', userId)
       .single()
     if (!error && data?.role) {
-      setCachedRole(userId, data.role)
-      return data.role
+      const displayName = data.username?.trim() || emailToName(email)
+      setCache(userId, data.role, displayName)
+      return { role: data.role, displayName }
     }
   } catch {}
 
   const role = isAdminEmail(email) ? 'admin' : 'employee'
-  setCachedRole(userId, role)
-  return role
+  const displayName = emailToName(email)
+  setCache(userId, role, displayName)
+  return { role, displayName }
 }
 
 const AuthContext = createContext(null)
@@ -61,6 +71,7 @@ const AuthContext = createContext(null)
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
+  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -71,9 +82,10 @@ export default function AuthProvider({ children }) {
         if (!mounted) return
 
         if (event === 'SIGNED_OUT') {
-          clearCachedRole()
+          clearCache()
           setUser(null)
           setRole(null)
+          setDisplayName('')
           setLoading(false)
           return
         }
@@ -81,22 +93,27 @@ export default function AuthProvider({ children }) {
         if (session?.user) {
           setUser(session.user)
 
-          // On token refresh, use cached role — do NOT hit DB again
+          // On token refresh, use cached data — do NOT hit DB again
           if (event === 'TOKEN_REFRESHED') {
-            const cached = getCachedRole(session.user.id)
-            if (cached) {
-              setRole(cached)
+            const cached = getCached(session.user.id)
+            if (cached?.role) {
+              setRole(cached.role)
+              setDisplayName(cached.displayName || emailToName(session.user.email))
               setLoading(false)
               return
             }
           }
 
-          const resolvedRole = await resolveRole(session.user.id, session.user.email)
-          if (mounted) setRole(resolvedRole)
+          const profile = await resolveProfile(session.user.id, session.user.email)
+          if (mounted) {
+            setRole(profile.role)
+            setDisplayName(profile.displayName)
+          }
         } else {
-          clearCachedRole()
+          clearCache()
           setUser(null)
           setRole(null)
+          setDisplayName('')
         }
 
         if (mounted) setLoading(false)
@@ -116,13 +133,13 @@ export default function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    clearCachedRole()
+    clearCache()
     await supabase.auth.signOut()
   }
 
   const value = useMemo(
-    () => ({ user, role, loading, login, logout }),
-    [user, role, loading]
+    () => ({ user, role, displayName, loading, login, logout }),
+    [user, role, displayName, loading]
   )
 
   return (
