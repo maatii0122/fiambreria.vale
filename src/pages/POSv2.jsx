@@ -473,6 +473,7 @@ export default function POSv2() {
 
   // ─── POS PRINCIPAL ────────────────────────────────────────────────────────────
   return (
+    <>
     <div className="space-y-4">
       {/* Header bar */}
       <div className="bg-blue-900 text-white rounded-2xl flex items-center justify-between px-5 py-3">
@@ -742,5 +743,6 @@ export default function POSv2() {
         </div>
       </div>
     )}
+    </>
   )
 }
