@@ -431,7 +431,9 @@ export default function Purchases() {
             </div>
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-full text-sm font-semibold">Cancelar</button>
-              <button onClick={() => createMutation.mutate()} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold">Registrar compra</button>
+              <button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold disabled:opacity-50">
+                {createMutation.isPending ? 'Registrando…' : 'Registrar compra'}
+              </button>
             </div>
           </div>
         </div>

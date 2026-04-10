@@ -330,9 +330,10 @@ export default function Expenses() {
               </button>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold disabled:opacity-50"
               >
-                Guardar
+                {(createMutation.isPending || updateMutation.isPending) ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </div>

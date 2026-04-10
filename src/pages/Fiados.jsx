@@ -227,7 +227,7 @@ export default function Fiados() {
               </button>
               <button
                 onClick={handleMarkPaid}
-                disabled={markPaidMutation.isLoading}
+                disabled={markPaidMutation.isPending}
                 className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
               >
                 Confirmar cobro
