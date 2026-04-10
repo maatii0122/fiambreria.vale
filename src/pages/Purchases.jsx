@@ -51,25 +51,15 @@ export default function Purchases() {
       if (items.length === 0) throw new Error('Agregá al menos un producto')
       const total = items.reduce((s, i) => s + i.subtotal, 0)
 
-      const { data: expense, error: expErr } = await supabase.from('expenses').insert({
-        description: `Compra de mercadería - ${supplier || 'Sin proveedor'}`,
-        amount: total,
-        category: 'Mercadería',
-        expense_type: 'variable',
-        date: new Date().toISOString().split('T')[0],
-        notes: invoiceNumber ? `Factura N° ${invoiceNumber}` : '',
-      }).select().single()
-      if (expErr) throw expErr
-
       const { data: purchase, error: purErr } = await supabase.from('purchases').insert({
         supplier,
         invoice_number: invoiceNumber,
         items,
         total,
-        expense_id: expense.id,
       }).select().single()
       if (purErr) throw purErr
 
+      // Update stock and purchase price for each product
       for (const item of items) {
         const prod = products.find(p => p.id === item.product_id)
         if (prod) {
@@ -85,7 +75,6 @@ export default function Purchases() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       toast.success('Compra registrada y stock actualizado')
       setShowModal(false)
       setSupplier('')
@@ -97,6 +86,7 @@ export default function Purchases() {
 
   const deleteMutation = useMutation({
     mutationFn: async (purchase) => {
+      // Revert stock for each item
       for (const item of (purchase.items || [])) {
         const prod = products.find(p => p.id === item.product_id)
         if (prod) {
@@ -105,16 +95,12 @@ export default function Purchases() {
           }).eq('id', prod.id)
         }
       }
-      if (purchase.expense_id) {
-        await supabase.from('expenses').delete().eq('id', purchase.expense_id)
-      }
       const { error } = await supabase.from('purchases').delete().eq('id', purchase.id)
       if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
       toast.success('Compra eliminada')
     },
     onError: () => toast.error('Error al eliminar'),

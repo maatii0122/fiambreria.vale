@@ -152,10 +152,10 @@ export default function Products() {
       return
     }
 
-    // Check if barcode collides with an existing different product
+    // Check if barcode collides with an active product (ignore inactive/deactivated ones)
     const barcodeNorm = form.barcode.trim()
     const collision = products.find(
-      p => String(p.barcode) === barcodeNorm && p.id !== editingProduct?.id
+      p => p.active !== false && String(p.barcode).trim() === barcodeNorm && p.id !== editingProduct?.id
     )
     if (collision) {
       toast.error(`El código ${barcodeNorm} ya pertenece a "${collision.name}"`)
@@ -491,7 +491,7 @@ export default function Products() {
               <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-200 rounded-full text-sm font-semibold">
                 Cancelar
               </button>
-              <button type="submit" disabled={mutateCreate.isLoading || mutateUpdate.isLoading} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold">
+              <button type="submit" disabled={mutateCreate.isPending || mutateUpdate.isPending} className="px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-semibold disabled:opacity-50">
                 Guardar
               </button>
             </div>
