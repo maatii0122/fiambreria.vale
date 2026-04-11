@@ -12,27 +12,40 @@ const isAdminEmail = (email) => {
 }
 
 const ROLE_CACHE_KEY = 'fiambrerias-role-cache'
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 function getCached(userId) {
-  try {
-    const stored = sessionStorage.getItem(ROLE_CACHE_KEY)
-    if (!stored) return null
-    const parsed = JSON.parse(stored)
-    if (parsed.userId === userId) return parsed
-  } catch {}
+  // Try localStorage first (persists across tabs), fallback to sessionStorage
+  for (const storage of [localStorage, sessionStorage]) {
+    try {
+      const stored = storage.getItem(ROLE_CACHE_KEY)
+      if (!stored) continue
+      const parsed = JSON.parse(stored)
+      if (parsed.userId !== userId) continue
+      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        storage.removeItem(ROLE_CACHE_KEY)
+        continue
+      }
+      return parsed
+    } catch {}
+  }
   return null
 }
 
 function setCache(userId, role, displayName) {
-  try {
-    sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ userId, role, displayName }))
-  } catch {}
+  const payload = JSON.stringify({
+    userId,
+    role,
+    displayName,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  })
+  try { localStorage.setItem(ROLE_CACHE_KEY, payload) } catch {}
+  try { sessionStorage.setItem(ROLE_CACHE_KEY, payload) } catch {}
 }
 
 function clearCache() {
-  try {
-    sessionStorage.removeItem(ROLE_CACHE_KEY)
-  } catch {}
+  try { localStorage.removeItem(ROLE_CACHE_KEY) } catch {}
+  try { sessionStorage.removeItem(ROLE_CACHE_KEY) } catch {}
 }
 
 function emailToName(email) {
