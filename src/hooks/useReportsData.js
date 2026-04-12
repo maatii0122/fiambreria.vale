@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { startOfMonthART } from '@/components/argentina'
 import { getDaysInMonth, differenceInDays } from 'date-fns'
 
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
 export function useReportsData(sales, expenses, products, periodConfig) {
   return useMemo(() => {
     const now = new Date()
@@ -51,10 +53,10 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       return d >= periodStart && d <= periodEnd
     })
 
-    const totalRevenue = inPeriod.reduce((sum, sale) => sum + (sale.total || 0), 0)
-    const prevRevenue = inPrev.reduce((sum, sale) => sum + (sale.total || 0), 0)
-    const sameLastYear = inLastYear.reduce((sum, sale) => sum + (sale.total || 0), 0)
-    const totalExpenses = expInPeriod.reduce((sum, exp) => sum + (exp.amount || 0), 0)
+    const totalRevenue = inPeriod.reduce((sum, s) => sum + (s.total || 0), 0)
+    const prevRevenue = inPrev.reduce((sum, s) => sum + (s.total || 0), 0)
+    const sameLastYear = inLastYear.reduce((sum, s) => sum + (s.total || 0), 0)
+    const totalExpenses = expInPeriod.reduce((sum, e) => sum + (e.amount || 0), 0)
 
     const calcProfit = (arr) => arr.reduce((sum, sale) =>
       sum + (sale.items || []).reduce((s, item) =>
@@ -67,13 +69,17 @@ export function useReportsData(sales, expenses, products, periodConfig) {
     const daysElapsed = Math.max(1, differenceInDays(now, periodStart) + 1)
     const dailyAvg = totalRevenue / daysElapsed
     const projected = dailyAvg * daysInMonth
+    const avgTicket = inPeriod.length > 0 ? totalRevenue / inPeriod.length : 0
 
+    // Daily chart
     const dailyMap = {}
     inPeriod.forEach(sale => {
       const day = new Date(sale.created_at).toISOString().split('T')[0]
-      if (!dailyMap[day]) dailyMap[day] = { revenue: 0, profit: 0 }
+      if (!dailyMap[day]) dailyMap[day] = { revenue: 0, profit: 0, count: 0 }
       dailyMap[day].revenue += sale.total || 0
-      dailyMap[day].profit += (sale.items || []).reduce((s, item) => s + ((item.unit_price - (item.purchase_price || 0)) * item.quantity), 0)
+      dailyMap[day].profit += (sale.items || []).reduce((s, item) =>
+        s + ((item.unit_price - (item.purchase_price || 0)) * item.quantity), 0)
+      dailyMap[day].count++
     })
     const dailyChart = Object.entries(dailyMap)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -81,28 +87,77 @@ export function useReportsData(sales, expenses, products, periodConfig) {
         date: date.slice(5),
         Ventas: Math.round(value.revenue),
         Ganancias: Math.round(value.profit),
+        Tickets: value.count,
       }))
 
+    // Best day
+    const bestDay = dailyChart.reduce((best, d) => d.Ventas > (best?.Ventas || 0) ? d : best, null)
+
+    // Day of week analysis
+    const dowMap = {}
+    DAY_NAMES.forEach(d => { dowMap[d] = { revenue: 0, count: 0 } })
+    inPeriod.forEach(sale => {
+      const dow = DAY_NAMES[new Date(sale.created_at).getDay()]
+      dowMap[dow].revenue += sale.total || 0
+      dowMap[dow].count++
+    })
+    // Reorder Mon-Sun
+    const dowOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    const byDayOfWeek = dowOrder.map(d => ({
+      day: d,
+      Ventas: Math.round(dowMap[d].revenue),
+      tickets: dowMap[d].count,
+    }))
+
+    // Hourly chart (ART = UTC-3)
+    const hourMap = {}
+    for (let h = 6; h <= 22; h++) hourMap[h] = { revenue: 0, count: 0 }
+    inPeriod.forEach(sale => {
+      const utcHour = new Date(sale.created_at).getUTCHours()
+      const artHour = ((utcHour - 3) + 24) % 24
+      if (artHour >= 6 && artHour <= 22) {
+        hourMap[artHour].revenue += sale.total || 0
+        hourMap[artHour].count++
+      }
+    })
+    const hourlyChart = Object.entries(hourMap).map(([h, v]) => ({
+      hora: `${h}h`,
+      Ventas: Math.round(v.revenue),
+      tickets: v.count,
+    }))
+
+    // Payment method breakdown
+    const payMap = {}
+    inPeriod.forEach(sale => {
+      const m = sale.payment_method || 'sin dato'
+      if (!payMap[m]) payMap[m] = { total: 0, count: 0 }
+      payMap[m].total += sale.total || 0
+      payMap[m].count++
+    })
+    const paymentChart = Object.entries(payMap)
+      .map(([name, v]) => ({ name, value: Math.round(v.total), count: v.count }))
+      .sort((a, b) => b.value - a.value)
+
+    // Expense breakdown
     const expByCategory = {}
     expInPeriod.forEach(exp => {
       expByCategory[exp.category] = (expByCategory[exp.category] || 0) + exp.amount
     })
-    const expPieChart = Object.entries(expByCategory).map(([name, value]) => ({
-      name,
-      value: Math.round(value),
-    }))
+    const expPieChart = Object.entries(expByCategory)
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .sort((a, b) => b.value - a.value)
 
+    // Product rotation
     const rotMap = {}
     inPeriod.forEach(sale => {
       const seen = new Set()
       ;(sale.items || []).forEach(item => {
         const name = item.product_name || 'Sin nombre'
-        if (!rotMap[name]) rotMap[name] = { ticketCount: 0, totalUnits: 0, product_id: item.product_id }
+        if (!rotMap[name]) rotMap[name] = { ticketCount: 0, totalUnits: 0, totalRevenue: 0, product_id: item.product_id }
         if (!seen.has(name)) { rotMap[name].ticketCount++; seen.add(name) }
         rotMap[name].totalUnits += item.quantity
-        if (!rotMap[name].product_id && item.product_id) {
-          rotMap[name].product_id = item.product_id
-        }
+        rotMap[name].totalRevenue += (item.unit_price || 0) * item.quantity
+        if (!rotMap[name].product_id && item.product_id) rotMap[name].product_id = item.product_id
       })
     })
     const rotacion = Object.entries(rotMap)
@@ -110,6 +165,7 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       .sort((a, b) => b.ticketCount - a.ticketCount)
       .slice(0, 10)
 
+    // Product canasta
     const pairMap = {}
     inPeriod.forEach(sale => {
       const names = (sale.items || []).map(i => i.product_name).sort()
@@ -124,8 +180,9 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       .filter(([, count]) => count >= 2)
       .map(([pair, count]) => ({ pair, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
+      .slice(0, 8)
 
+    // Critical stock
     const soldMap = {}
     inPeriod.forEach(sale => {
       ;(sale.items || []).forEach(item => {
@@ -133,17 +190,17 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       })
     })
     const criticalStock = products
-      .filter(product => product.active)
-      .map(product => {
-        const sold = soldMap[product.id] || 0
+      .filter(p => p.active)
+      .map(p => {
+        const sold = soldMap[p.id] || 0
         const dailySold = sold / Math.max(1, daysElapsed)
-        const daysLeft = dailySold > 0 ? Math.floor(product.current_stock / dailySold) : 999
-        return { ...product, daysLeft, dailySold: Math.round(dailySold * 10) / 10 }
+        const daysLeft = dailySold > 0 ? Math.floor(p.current_stock / dailySold) : 999
+        return { ...p, daysLeft, dailySold: Math.round(dailySold * 10) / 10 }
       })
-      .filter(product => product.daysLeft < 14)
+      .filter(p => p.daysLeft < 14)
       .sort((a, b) => a.daysLeft - b.daysLeft)
 
-    // Cajero stats for the period
+    // Cajero stats
     const cajeroMap = {}
     inPeriod.forEach(sale => {
       const cajero = sale.cashier || 'Sin cajero'
@@ -151,45 +208,33 @@ export function useReportsData(sales, expenses, products, periodConfig) {
       cajeroMap[cajero].count++
       cajeroMap[cajero].total += sale.total || 0
       cajeroMap[cajero].profit += (sale.items || []).reduce(
-        (s, item) => s + ((item.unit_price - (item.purchase_price || 0)) * item.quantity), 0
-      )
+        (s, item) => s + ((item.unit_price - (item.purchase_price || 0)) * item.quantity), 0)
     })
     const cajeroStats = Object.entries(cajeroMap)
-      .map(([name, stats]) => ({ name, ...stats }))
+      .map(([name, stats]) => ({ name, ...stats, avgTicket: stats.count > 0 ? stats.total / stats.count : 0 }))
       .sort((a, b) => b.total - a.total)
 
+    // ROI and break-even
+    const breakEvenUnits = totalExpenses > 0 && totalRevenue > 0
+      ? Math.ceil(totalExpenses / (totalRevenue / Math.max(1, inPeriod.length)))
+      : 0
+
     const tips = []
-    if (prevRevenue > 0 && totalRevenue < prevRevenue * 0.8) {
-      tips.push(`⚠️ Las ventas cayeron un ${Math.round((1 - totalRevenue / prevRevenue) * 100)}% vs el período anterior.`)
-    }
-    if (criticalStock.length > 0) {
-      tips.push(`📦 ${criticalStock.length} producto(s) con menos de 14 días de stock disponible.`)
-    }
-    if (prevRevenue > 0 && totalRevenue > prevRevenue * 1.1) {
-      tips.push(`📈 ¡Buenas noticias! Las ventas subieron un ${Math.round((totalRevenue / prevRevenue - 1) * 100)}% vs el período anterior.`)
-    }
-    if (netProfit < 0) {
-      tips.push(`🔴 La utilidad neta es negativa. Los gastos superan la ganancia bruta.`)
-    }
+    if (prevRevenue > 0 && totalRevenue < prevRevenue * 0.8)
+      tips.push(`Las ventas cayeron un ${Math.round((1 - totalRevenue / prevRevenue) * 100)}% vs el período anterior.`)
+    if (criticalStock.length > 0)
+      tips.push(`${criticalStock.length} producto(s) con menos de 14 días de stock.`)
+    if (prevRevenue > 0 && totalRevenue > prevRevenue * 1.1)
+      tips.push(`Las ventas subieron un ${Math.round((totalRevenue / prevRevenue - 1) * 100)}% vs el período anterior.`)
+    if (netProfit < 0)
+      tips.push(`La utilidad neta es negativa. Los gastos superan la ganancia bruta.`)
 
     return {
-      totalRevenue,
-      prevRevenue,
-      sameLastYear,
-      totalExpenses,
-      totalProfit,
-      netProfit,
-      projected,
-      dailyAvg,
-      daysInMonth,
-      daysElapsed,
-      dailyChart,
-      expPieChart,
-      rotacion,
-      canasta,
-      criticalStock,
-      cajeroStats,
-      tips,
+      totalRevenue, prevRevenue, sameLastYear, totalExpenses, totalProfit,
+      netProfit, projected, dailyAvg, daysInMonth, daysElapsed,
+      avgTicket, bestDay, breakEvenUnits,
+      dailyChart, byDayOfWeek, hourlyChart, paymentChart, expPieChart,
+      rotacion, canasta, criticalStock, cajeroStats, tips,
     }
   }, [sales, expenses, products, periodConfig])
 }

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import {
-  LineChart, Line, AreaChart, Area, Tooltip, ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -11,21 +12,19 @@ import { useReportsData } from '@/hooks/useReportsData'
 import { addPromotion } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
 
-const MONTHS = [
-  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
-  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre',
-]
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-// ── Animated Number ──────────────────────────────────────────────
+const PAYMENT_COLORS = { efectivo: '#34c759', transferencia: '#007AFF', qr: '#af52de', tarjeta: '#ff9500', fiado: '#ff3b30' }
+const PIE_COLORS = ['#007AFF','#34c759','#af52de','#ff9500','#ff3b30','#5ac8fa','#ffcc00']
+
+// ── Animated Number ───────────────────────────────────────────────
 function AnimatedNumber({ value, format = v => v }) {
   const [display, setDisplay] = useState(value)
   const ref = useRef(value)
   useEffect(() => {
-    const from = ref.current
-    const to = value
+    const from = ref.current, to = value
     if (from === to) return
-    const steps = 24
-    let i = 0
+    const steps = 24; let i = 0
     const id = setInterval(() => {
       i++
       setDisplay(from + (to - from) * (i / steps))
@@ -36,19 +35,6 @@ function AnimatedNumber({ value, format = v => v }) {
   return <span>{format(display)}</span>
 }
 
-// ── Apple Tooltip ─────────────────────────────────────────────────
-function AppleTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-white/90 backdrop-blur-xl border border-black/5 rounded-2xl shadow-lg px-3 py-2 text-xs">
-      <p className="text-[#86868b] mb-1">{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} className="font-semibold text-[#1d1d1f]">{p.name}: {fmtMoney(p.value)}</p>
-      ))}
-    </div>
-  )
-}
-
 // ── Segmented Control ────────────────────────────────────────────
 function SegmentedControl({ options, value, onChange }) {
   return (
@@ -56,17 +42,12 @@ function SegmentedControl({ options, value, onChange }) {
       {options.map(opt => {
         const isActive = value === opt.value
         return (
-          <button
-            key={opt.value}
-            onClick={() => onChange(opt.value)}
-            className="relative px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors z-10"
-          >
+          <button key={opt.value} onClick={() => onChange(opt.value)}
+            className="relative px-4 py-1.5 text-sm font-medium rounded-[8px] transition-colors z-10">
             {isActive && (
-              <motion.div
-                layoutId="seg-bg"
+              <motion.div layoutId={`seg-${options.map(o=>o.value).join('')}`}
                 className="absolute inset-0 bg-white rounded-[8px] shadow-sm"
-                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              />
+                transition={{ type: 'spring', stiffness: 400, damping: 35 }} />
             )}
             <span className={`relative z-10 transition-colors ${isActive ? 'text-[#1d1d1f]' : 'text-[#86868b]'}`}>
               {opt.label}
@@ -78,11 +59,27 @@ function SegmentedControl({ options, value, onChange }) {
   )
 }
 
-// ── Widget card ───────────────────────────────────────────────────
+// ── Widget ────────────────────────────────────────────────────────
 function Widget({ children, className = '' }) {
+  return <div className={`bg-white border border-black/5 rounded-2xl ${className}`}>{children}</div>
+}
+
+// ── Section label ─────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return <p className="text-xs font-semibold text-[#86868b] uppercase tracking-[0.2em] mb-4">{children}</p>
+}
+
+// ── Apple Tooltip ─────────────────────────────────────────────────
+function AppleTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
   return (
-    <div className={`bg-white border border-black/5 rounded-2xl ${className}`}>
-      {children}
+    <div className="bg-white/95 backdrop-blur-xl border border-black/8 rounded-xl shadow-lg px-3 py-2 text-xs">
+      <p className="text-[#86868b] mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color || p.stroke }} className="font-semibold">
+          {p.name}: {typeof p.value === 'number' && p.value > 100 ? fmtMoney(p.value) : p.value}
+        </p>
+      ))}
     </div>
   )
 }
@@ -97,9 +94,7 @@ export default function Reports() {
   const [periodMode, setPeriodMode] = useState('month')
   const [customYear, setCustomYear] = useState(now.getFullYear())
   const [customMonth, setCustomMonth] = useState(now.getMonth())
-  const [periodConfig, setPeriodConfig] = useState({
-    type: 'month', year: now.getFullYear(), month: now.getMonth(),
-  })
+  const [periodConfig, setPeriodConfig] = useState({ type: 'month', year: now.getFullYear(), month: now.getMonth() })
   const [insights, setInsights] = useState(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const insightsRef = useRef(null)
@@ -110,9 +105,7 @@ export default function Reports() {
       .then(({ data }) => { if (data) setStores(data) })
   }, [isAdmin])
 
-  const activeStoreId = isAdmin
-    ? (storeFilter === 'all' ? null : storeFilter)
-    : storeId
+  const activeStoreId = isAdmin ? (storeFilter === 'all' ? null : storeFilter) : storeId
 
   const { data: sales = [] } = useQuery({
     queryKey: ['sales', activeStoreId],
@@ -167,45 +160,43 @@ export default function Reports() {
 
   const {
     totalRevenue, prevRevenue, sameLastYear, totalExpenses, totalProfit,
-    netProfit, projected, daysInMonth, daysElapsed, dailyChart,
-    rotacion, criticalStock, cajeroStats, tips, dailyAvg,
+    netProfit, projected, daysInMonth, daysElapsed, dailyAvg,
+    avgTicket, bestDay, breakEvenUnits,
+    dailyChart, byDayOfWeek, hourlyChart, paymentChart, expPieChart,
+    rotacion, canasta, criticalStock, cajeroStats, tips,
   } = data
 
   const revDelta = prevRevenue === 0 ? 0 : Math.round((totalRevenue - prevRevenue) / prevRevenue * 100)
+  const yearDelta = sameLastYear === 0 ? 0 : Math.round((totalRevenue - sameLastYear) / sameLastYear * 100)
   const marginPct = totalRevenue ? Math.round(totalProfit / totalRevenue * 100) : 0
   const maxRotation = rotacion[0]?.totalUnits || 1
+  const maxDow = Math.max(...byDayOfWeek.map(d => d.Ventas), 1)
+  const bestDow = byDayOfWeek.reduce((b, d) => d.Ventas > (b?.Ventas || 0) ? d : b, null)
 
   // Anomalías
   const anomalies = useMemo(() => {
     const list = []
     if (totalRevenue > 0 && totalExpenses === 0)
-      list.push({ icon: '◈', label: `Se detectaron ingresos en ${storeFilter === 'all' ? 'el período' : stores.find(s => s.id === storeFilter)?.name || 'el negocio'}, pero el registro de egresos está vacío. Esto afecta el cálculo de utilidad neta.`, title: 'Inconsistencia de datos' })
+      list.push({ icon: '◈', title: 'Inconsistencia de datos', label: 'Se detectaron ingresos pero el registro de egresos está vacío. Esto afecta el cálculo de utilidad neta.' })
     if (totalRevenue > 0 && totalExpenses > totalRevenue * 0.8)
-      list.push({ icon: '◆', label: `Los gastos representan el ${Math.round(totalExpenses / totalRevenue * 100)}% de los ingresos. El margen neto está bajo el umbral recomendado del 20%.`, title: 'Margen crítico' })
+      list.push({ icon: '◆', title: 'Margen crítico', label: `Los gastos representan el ${Math.round(totalExpenses / totalRevenue * 100)}% de los ingresos. El margen neto está bajo el umbral recomendado del 20%.` })
+    if (prevRevenue > 0 && totalRevenue < prevRevenue * 0.8)
+      list.push({ icon: '▲', title: 'Caída de ventas', label: `Las ventas cayeron un ${Math.round((1 - totalRevenue / prevRevenue) * 100)}% respecto al período anterior. Revisar causas antes de que el mes cierre.` })
     return list
-  }, [totalRevenue, totalExpenses, storeFilter, stores])
+  }, [totalRevenue, totalExpenses, prevRevenue])
 
   const shiftsInPeriod = useMemo(() => {
     if (!shiftLogs.length) return []
     const { periodStart, periodEnd } = (() => {
       if (periodConfig.type === 'month') {
         const y = periodConfig.year, m = periodConfig.month
-        return {
-          periodStart: new Date(Date.UTC(y, m, 1, 3, 0, 0)),
-          periodEnd: new Date(Date.UTC(y, m + 1, 0, 26, 59, 59)),
-        }
+        return { periodStart: new Date(Date.UTC(y, m, 1, 3, 0, 0)), periodEnd: new Date(Date.UTC(y, m + 1, 0, 26, 59, 59)) }
       }
-      const now2 = new Date()
-      const d = new Date(now2)
-      const day = d.getDay()
-      d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-      d.setHours(0, 0, 0, 0)
+      const now2 = new Date(), d = new Date(now2), day = d.getDay()
+      d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); d.setHours(0,0,0,0)
       return { periodStart: d, periodEnd: now2 }
     })()
-    return shiftLogs.filter(s => {
-      const d = new Date(s.created_at)
-      return d >= periodStart && d <= periodEnd
-    })
+    return shiftLogs.filter(s => { const d = new Date(s.created_at); return d >= periodStart && d <= periodEnd })
   }, [shiftLogs, periodConfig])
 
   const topRotation = rotacion[0]
@@ -223,11 +214,28 @@ export default function Reports() {
   const handleGenerateInsights = async () => {
     const apiKey = import.meta.env.VITE_GOOGLE_AI_STUDIO_API_KEY
     if (!apiKey) { toast.error('Configurá VITE_GOOGLE_AI_STUDIO_API_KEY en Vercel'); return }
-    setLoadingInsights(true)
-    setInsights(null)
+    setLoadingInsights(true); setInsights(null)
     try {
       const periodLabel = periodMode === 'week' ? 'esta semana' : `${MONTHS[customMonth]} ${customYear}`
-      const fullPrompt = `Sos un contador experto en comercios minoristas de Argentina. Todos los valores están en pesos argentinos (ARS).\n\nDatos del período "${periodLabel}":\n- Ingresos: ARS ${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior)\n- Ganancia bruta: ARS ${Math.round(totalProfit)} (margen ${marginPct}%)\n- Gastos: ARS ${Math.round(totalExpenses)}\n- Utilidad neta: ARS ${Math.round(netProfit)}\n- Proyección mensual: ARS ${Math.round(projected)} (día ${daysElapsed}/${daysInMonth})\n- Top vendidos: ${rotacion.slice(0, 3).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}\n- Cajeros: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas`).join(', ') || 'sin datos'}\n\nRespondé ÚNICAMENTE con un JSON sin markdown:\n{"resumen":"2 oraciones directas sobre el período","accion":"1 acción concreta y específica a tomar esta semana"}`
+      const prompt = `Sos un asesor financiero y de negocios experto en comercios minoristas de Argentina (fiambrerías y kioscos). Todos los valores son en pesos argentinos (ARS).
+
+Datos del período "${periodLabel}":
+- Ingresos: ARS ${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior, ${yearDelta >= 0 ? '+' : ''}${yearDelta}% vs mismo mes año pasado)
+- Ganancia bruta: ARS ${Math.round(totalProfit)} (margen ${marginPct}%)
+- Gastos: ARS ${Math.round(totalExpenses)}
+- Utilidad neta: ARS ${Math.round(netProfit)}
+- Ticket promedio: ARS ${Math.round(avgTicket)}
+- Proyección mensual: ARS ${Math.round(projected)} (día ${daysElapsed}/${daysInMonth})
+- Promedio diario: ARS ${Math.round(dailyAvg)}
+- Mejor día de la semana: ${bestDow?.day || 'N/A'} (ARS ${Math.round(bestDow?.Ventas || 0)})
+- Métodos de pago: ${paymentChart.map(p => `${p.name}: ARS ${p.value} (${p.count} ops)`).join(', ') || 'sin datos'}
+- Top 5 vendidos: ${rotacion.slice(0,5).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}
+- Productos críticos (<14 días stock): ${criticalStock.slice(0,5).map(p => p.name).join(', ') || 'ninguno'}
+- Cajeros: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas ARS ${Math.round(c.total)}`).join(' | ') || 'sin datos'}
+- Turnos del período: ${shiftsInPeriod.length}
+
+Respondé ÚNICAMENTE con este JSON exacto (sin markdown, sin texto extra):
+{"diagnostico":"2-3 oraciones directas sobre la salud financiera del período","alerta":"La alerta más urgente si existe, o null si todo está bien","oportunidad":"La mayor oportunidad de crecimiento detectada en los datos","accion_semana":"1 acción concreta y específica a ejecutar esta semana","prediccion":"Proyección inteligente para el próximo período basada en tendencias"}`
 
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -235,7 +243,7 @@ export default function Reports() {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }],
+            contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 },
           }),
         }
@@ -245,9 +253,8 @@ export default function Reports() {
       const parts = json.candidates?.[0]?.content?.parts || []
       const text = parts.map(p => p.text || '').join('')
       const stripped = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '')
-      const start = stripped.indexOf('{')
-      const end = stripped.lastIndexOf('}')
-      if (start === -1 || end === -1) throw new Error(`Respuesta inesperada: ${text.slice(0, 150)}`)
+      const start = stripped.indexOf('{'), end = stripped.lastIndexOf('}')
+      if (start === -1 || end === -1) throw new Error(`Respuesta inesperada: ${text.slice(0,150)}`)
       setInsights(JSON.parse(stripped.slice(start, end + 1)))
       setTimeout(() => insightsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
@@ -264,25 +271,16 @@ export default function Reports() {
     else toast.error('Ya existe')
   }
 
-  // Store selector options for admin
-  const storeOptions = [
-    { value: 'all', label: 'Global' },
-    ...stores.map(s => ({ value: s.id, label: s.name })),
-  ]
-
-  const PERIOD_OPTIONS = [
-    { value: 'week', label: 'Semana' },
-    { value: 'month', label: 'Mes' },
-    { value: 'custom', label: 'Personalizado' },
-  ]
+  const storeOptions = [{ value: 'all', label: 'Global' }, ...stores.map(s => ({ value: s.id, label: s.name }))]
+  const PERIOD_OPTIONS = [{ value: 'week', label: 'Semana' }, { value: 'month', label: 'Mes' }, { value: 'custom', label: 'Personalizado' }]
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 pb-16">
 
       {/* ── HEADER ──────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pt-2">
         <div>
-          <p className="text-xs text-[#86868b] uppercase tracking-[0.2em]">Reportes</p>
+          <p className="text-xs text-[#86868b] uppercase tracking-[0.2em]">Asesor financiero</p>
           <h1 className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">Inteligencia de negocio</h1>
         </div>
         <div className="flex flex-col gap-2 items-start md:items-end">
@@ -294,9 +292,7 @@ export default function Reports() {
             <div className="flex gap-2">
               <select value={customYear} onChange={e => setCustomYear(Number(e.target.value))}
                 className="bg-white border border-black/10 rounded-xl px-3 py-1.5 text-sm text-[#1d1d1f] focus:outline-none">
-                {[now.getFullYear(), now.getFullYear() - 1].map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
+                {[now.getFullYear(), now.getFullYear()-1].map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <select value={customMonth} onChange={e => setCustomMonth(Number(e.target.value))}
                 className="bg-white border border-black/10 rounded-xl px-3 py-1.5 text-sm text-[#1d1d1f] focus:outline-none">
@@ -307,12 +303,12 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* ── AVISOS DEL SISTEMA ──────────────────────────────────── */}
+      {/* ── AVISOS ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {anomalies.length > 0 && (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <Widget className="p-5 space-y-3">
-              <p className="text-xs font-semibold text-[#86868b] uppercase tracking-[0.2em]">Avisos del sistema</p>
+              <SectionLabel>Avisos del sistema</SectionLabel>
               {anomalies.map((a, i) => (
                 <div key={i} className="flex gap-3 items-start">
                   <div className="mt-0.5 w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center shrink-0 text-amber-500 text-sm">{a.icon}</div>
@@ -327,107 +323,292 @@ export default function Reports() {
         )}
       </AnimatePresence>
 
-      {/* ── MÉTRICAS CLAVE ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* ── KPIs FILA 1 ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium mb-3">Ingresos netos</p>
-          <p className="text-3xl font-semibold text-[#1d1d1f] tracking-tight">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Ingresos netos</p>
+          <p className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">
             <AnimatedNumber value={totalRevenue} format={v => fmtMoney(Math.round(v))} />
           </p>
           <p className="text-xs text-[#86868b] mt-1">{sales.length} ventas</p>
           {prevRevenue > 0 && (
             <span className={`inline-block mt-2 text-xs font-semibold px-2 py-0.5 rounded-full ${revDelta >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
-              {revDelta >= 0 ? '↑' : '↓'} {Math.abs(revDelta)}% vs mes anterior
+              {revDelta >= 0 ? '↑' : '↓'} {Math.abs(revDelta)}% vs anterior
             </span>
           )}
         </Widget>
         <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium mb-3">Gastos del período</p>
-          <p className="text-3xl font-semibold text-[#1d1d1f] tracking-tight">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Gastos del período</p>
+          <p className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">
             <AnimatedNumber value={totalExpenses} format={v => fmtMoney(Math.round(v))} />
           </p>
           <p className="text-xs text-[#86868b] mt-1">{expenses.length} registros</p>
         </Widget>
         <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium mb-3">Margen de rentabilidad</p>
-          <p className={`text-3xl font-semibold tracking-tight ${marginPct >= 20 ? 'text-[#34c759]' : marginPct >= 10 ? 'text-amber-500' : 'text-[#ff3b30]'}`}>
+          <p className="text-xs text-[#86868b] font-medium mb-2">Margen de rentabilidad</p>
+          <p className={`text-2xl font-semibold tracking-tight ${marginPct >= 20 ? 'text-[#34c759]' : marginPct >= 10 ? 'text-amber-500' : 'text-[#ff3b30]'}`}>
             <AnimatedNumber value={marginPct} format={v => `${Math.round(v)}%`} />
           </p>
           <p className="text-xs text-[#86868b] mt-1">Ganancia: {fmtMoney(totalProfit)}</p>
         </Widget>
+        <Widget className="p-5">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Utilidad neta</p>
+          <p className={`text-2xl font-semibold tracking-tight ${netProfit >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
+            <AnimatedNumber value={netProfit} format={v => fmtMoney(Math.round(v))} />
+          </p>
+          <p className="text-xs text-[#86868b] mt-1">{netProfit >= 0 ? 'Positiva ✓' : 'Negativa — revisar gastos'}</p>
+        </Widget>
       </div>
 
-      {/* ── GRÁFICO ESTILO APPLE STOCKS ─────────────────────────── */}
-      <Widget className="p-5">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em]">Evolución de ventas</p>
-          <p className="text-xs text-[#86868b]">Promedio: {fmtMoney(dailyAvg)}/día</p>
-        </div>
-        <div className="h-36">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyChart} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="appleGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#007AFF" stopOpacity={0.18} />
-                  <stop offset="95%" stopColor="#007AFF" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Tooltip content={<AppleTooltip />} />
-              <Area type="monotone" dataKey="Ventas" stroke="#007AFF" strokeWidth={1.5} fill="url(#appleGrad)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        {/* Proyección */}
-        <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-[#86868b]">Proyección de cierre</p>
-            <p className="text-base font-semibold text-[#1d1d1f]">{fmtMoney(projected)}</p>
-          </div>
-          <div className="flex-1 mx-6">
-            <div className="flex justify-between text-xs text-[#86868b] mb-1">
-              <span>Día {daysElapsed}</span>
-              <span>{daysInMonth}</span>
-            </div>
-            <div className="h-1 bg-black/5 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-[#007AFF]"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.round(daysElapsed / daysInMonth * 100)}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-              />
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-[#86868b]">Utilidad neta</p>
-            <p className={`text-base font-semibold ${netProfit >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>{fmtMoney(netProfit)}</p>
-          </div>
-        </div>
-      </Widget>
-
-      {/* ── TOP ROTACIÓN ────────────────────────────────────────── */}
-      {rotacion.length > 0 && (
+      {/* ── KPIs FILA 2 ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em] mb-4">Rotación de productos</p>
-          <div className="space-y-4">
-            {rotacion.slice(0, 8).map((item, i) => (
-              <div key={item.product_name}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#86868b] w-4">{i + 1}</span>
-                    <p className="text-sm font-medium text-[#1d1d1f]">{item.product_name}</p>
+          <p className="text-xs text-[#86868b] font-medium mb-2">Ticket promedio</p>
+          <p className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">
+            <AnimatedNumber value={avgTicket} format={v => fmtMoney(Math.round(v))} />
+          </p>
+          <p className="text-xs text-[#86868b] mt-1">por venta</p>
+        </Widget>
+        <Widget className="p-5">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Promedio diario</p>
+          <p className="text-2xl font-semibold text-[#007AFF] tracking-tight">
+            <AnimatedNumber value={dailyAvg} format={v => fmtMoney(Math.round(v))} />
+          </p>
+          <p className="text-xs text-[#86868b] mt-1">Día {daysElapsed} de {daysInMonth}</p>
+        </Widget>
+        <Widget className="p-5">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Proyección mensual</p>
+          <p className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">
+            <AnimatedNumber value={projected} format={v => fmtMoney(Math.round(v))} />
+          </p>
+          <div className="mt-2 h-1 bg-black/5 rounded-full overflow-hidden">
+            <motion.div className="h-full rounded-full bg-[#007AFF]"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, Math.round(daysElapsed / daysInMonth * 100))}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }} />
+          </div>
+        </Widget>
+        <Widget className="p-5">
+          <p className="text-xs text-[#86868b] font-medium mb-2">Mejor día</p>
+          <p className="text-2xl font-semibold text-[#1d1d1f] tracking-tight">{bestDow?.day || '—'}</p>
+          <p className="text-xs text-[#86868b] mt-1">{bestDow ? fmtMoney(bestDow.Ventas) + ' en prom.' : 'Sin datos'}</p>
+        </Widget>
+      </div>
+
+      {/* ── GRÁFICO VENTAS + MÉTODO DE PAGO ─────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Widget className="lg:col-span-2 p-5">
+          <SectionLabel>Evolución de ventas y ganancias</SectionLabel>
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dailyChart} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gVentas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#007AFF" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#007AFF" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gGanancias" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#34c759" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#34c759" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip content={<AppleTooltip />} />
+                <Area type="monotone" dataKey="Ventas" stroke="#007AFF" strokeWidth={1.5} fill="url(#gVentas)" dot={false} />
+                <Area type="monotone" dataKey="Ganancias" stroke="#34c759" strokeWidth={1.5} fill="url(#gGanancias)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Comparativa rápida */}
+          <div className="mt-4 pt-4 border-t border-black/5 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-xs text-[#86868b]">Este período</p>
+              <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(totalRevenue)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[#86868b]">Período anterior</p>
+              <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(prevRevenue)}</p>
+              {prevRevenue > 0 && (
+                <span className={`text-xs font-semibold ${revDelta >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
+                  {revDelta >= 0 ? '↑' : '↓'}{Math.abs(revDelta)}%
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-[#86868b]">Mismo mes año ant.</p>
+              <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(sameLastYear)}</p>
+              {sameLastYear > 0 && (
+                <span className={`text-xs font-semibold ${yearDelta >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
+                  {yearDelta >= 0 ? '↑' : '↓'}{Math.abs(yearDelta)}%
+                </span>
+              )}
+            </div>
+          </div>
+        </Widget>
+
+        {/* Métodos de pago */}
+        <Widget className="p-5">
+          <SectionLabel>Métodos de pago</SectionLabel>
+          {paymentChart.length === 0 ? (
+            <p className="text-sm text-[#86868b]">Sin datos</p>
+          ) : (
+            <>
+              <div className="h-32 mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={paymentChart} dataKey="value" innerRadius={38} outerRadius={58} paddingAngle={2} strokeWidth={0}>
+                      {paymentChart.map((entry, i) => (
+                        <Cell key={i} fill={PAYMENT_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<AppleTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2">
+                {paymentChart.map((p, i) => (
+                  <div key={p.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PAYMENT_COLORS[p.name] || PIE_COLORS[i % PIE_COLORS.length] }} />
+                      <p className="text-xs text-[#1d1d1f] capitalize">{p.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-[#1d1d1f]">{fmtMoney(p.value)}</p>
+                      <p className="text-[10px] text-[#86868b]">{p.count} ops</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-[#86868b]">{item.totalUnits} uds</p>
+                ))}
+              </div>
+            </>
+          )}
+        </Widget>
+      </div>
+
+      {/* ── DÍA DE LA SEMANA + HORARIO ──────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Widget className="p-5">
+          <SectionLabel>Ventas por día de la semana</SectionLabel>
+          <div className="space-y-3">
+            {byDayOfWeek.map(d => (
+              <div key={d.day}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className={`text-sm font-medium ${d.day === bestDow?.day ? 'text-[#007AFF]' : 'text-[#1d1d1f]'}`}>{d.day}</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs text-[#86868b]">{d.tickets} tickets</p>
+                    <p className="text-xs font-semibold text-[#1d1d1f]">{fmtMoney(d.Ventas)}</p>
+                  </div>
                 </div>
-                <div className="h-[2px] bg-black/5 rounded-full overflow-hidden">
+                <div className="h-[3px] bg-black/5 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full rounded-full bg-[#007AFF]"
+                    className={`h-full rounded-full ${d.day === bestDow?.day ? 'bg-[#007AFF]' : 'bg-black/15'}`}
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.round(item.totalUnits / maxRotation * 100)}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.05, ease: 'easeOut' }}
+                    animate={{ width: `${Math.round(d.Ventas / maxDow * 100)}%` }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
                   />
                 </div>
               </div>
             ))}
+          </div>
+        </Widget>
+
+        <Widget className="p-5">
+          <SectionLabel>Ventas por hora del día</SectionLabel>
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyChart} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={6}>
+                <Tooltip content={<AppleTooltip />} />
+                <Bar dataKey="Ventas" fill="#007AFF" radius={[3, 3, 0, 0]} opacity={0.8} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-[#86868b] mt-2 text-center">Hora del día (horario ART)</p>
+        </Widget>
+      </div>
+
+      {/* ── ROTACIÓN + CANASTA ──────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Widget className="p-5">
+          <SectionLabel>Rotación de productos</SectionLabel>
+          {rotacion.length === 0 ? (
+            <p className="text-sm text-[#86868b]">Sin datos</p>
+          ) : (
+            <div className="space-y-4">
+              {rotacion.map((item, i) => (
+                <div key={item.product_name}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold w-4 ${i === 0 ? 'text-[#007AFF]' : 'text-[#86868b]'}`}>{i + 1}</span>
+                      <p className="text-sm font-medium text-[#1d1d1f]">{item.product_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-[#1d1d1f]">{item.totalUnits} uds</p>
+                      <p className="text-[10px] text-[#86868b]">{item.ticketCount} tickets</p>
+                    </div>
+                  </div>
+                  <div className="h-[2px] bg-black/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full ${i === 0 ? 'bg-[#007AFF]' : 'bg-black/20'}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round(item.totalUnits / maxRotation * 100)}%` }}
+                      transition={{ duration: 0.6, delay: i * 0.04, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Widget>
+
+        <Widget className="p-5">
+          <SectionLabel>Canasta de compra — productos que se venden juntos</SectionLabel>
+          {canasta.length === 0 ? (
+            <p className="text-sm text-[#86868b]">No hay suficientes datos de co-ventas aún.</p>
+          ) : (
+            <div className="divide-y divide-black/5">
+              {canasta.map((entry, i) => (
+                <div key={entry.pair} className="flex items-center justify-between py-2.5">
+                  <p className="text-sm text-[#1d1d1f]">{entry.pair}</p>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#f0f7ff] text-[#007AFF]">{entry.count}×</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {canasta.length > 0 && (
+            <p className="text-xs text-[#86868b] mt-3 pt-3 border-t border-black/5">
+              Estos pares son oportunidades para armar combos o posicionar productos juntos en la góndola.
+            </p>
+          )}
+        </Widget>
+      </div>
+
+      {/* ── GASTOS POR CATEGORÍA ─────────────────────────────────── */}
+      {expPieChart.length > 0 && (
+        <Widget className="p-5">
+          <SectionLabel>Gastos por categoría</SectionLabel>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={expPieChart} dataKey="value" innerRadius={45} outerRadius={70} paddingAngle={2} strokeWidth={0}>
+                    {expPieChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip content={<AppleTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {expPieChart.map((e, i) => (
+                <div key={e.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <p className="text-sm text-[#1d1d1f] capitalize">{e.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(e.value)}</p>
+                    <p className="text-[10px] text-[#86868b]">{totalExpenses > 0 ? Math.round(e.value / totalExpenses * 100) : 0}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </Widget>
       )}
@@ -435,37 +616,24 @@ export default function Reports() {
       {/* ── CAJEROS ─────────────────────────────────────────────── */}
       {cajeroStats.length > 0 && (
         <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em] mb-4">Rendimiento por cajero</p>
+          <SectionLabel>Rendimiento por cajero</SectionLabel>
           <div className="divide-y divide-black/5">
             {cajeroStats.map((c, i) => (
-              <div key={c.name} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${i === 0 ? 'bg-[#007AFF] text-white' : 'bg-black/5 text-[#86868b]'}`}>{i + 1}</span>
-                  <div>
+              <div key={c.name} className="flex items-center gap-4 py-3">
+                <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${i === 0 ? 'bg-[#007AFF] text-white' : 'bg-black/5 text-[#86868b]'}`}>{i + 1}</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-medium text-[#1d1d1f]">{c.name}</p>
-                    <p className="text-xs text-[#86868b]">{c.count} ventas</p>
+                    <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(c.total)}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-[2px] bg-black/5 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-[#007AFF]"
+                        style={{ width: `${cajeroStats[0]?.total ? Math.round(c.total / cajeroStats[0].total * 100) : 0}%` }} />
+                    </div>
+                    <p className="text-xs text-[#86868b] shrink-0">{c.count} ventas · tk. {fmtMoney(Math.round(c.avgTicket))} · {fmtMoney(c.profit)} gan.</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-[#1d1d1f]">{fmtMoney(c.total)}</p>
-                  <p className="text-xs text-[#86868b]">{fmtMoney(c.profit)} ganancia</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Widget>
-      )}
-
-      {/* ── STOCK CRÍTICO ───────────────────────────────────────── */}
-      {criticalStock.length > 0 && (
-        <Widget className="p-5">
-          <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em] mb-4">Stock crítico</p>
-          <div className="grid gap-2 md:grid-cols-3">
-            {criticalStock.map(p => (
-              <div key={p.id} className="bg-[#fff2f2] border border-[#ff3b30]/10 rounded-xl p-3">
-                <p className="text-sm font-medium text-[#1d1d1f]">{p.name}</p>
-                <p className="text-xs text-[#ff3b30] font-semibold mt-0.5">{p.daysLeft} días restantes</p>
-                <p className="text-xs text-[#86868b]">Stock: {p.current_stock} · {p.dailySold} uds/día</p>
               </div>
             ))}
           </div>
@@ -476,7 +644,7 @@ export default function Reports() {
       {suggestedPromotion && (
         <Widget className="p-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em] mb-1">Sugerencia inteligente</p>
+            <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em] mb-1">Sugerencia de combo</p>
             <p className="text-sm font-semibold text-[#1d1d1f]">{suggestedPromotion.name}</p>
             <p className="text-sm text-[#86868b]">{suggestedPromotion.description}</p>
           </div>
@@ -491,39 +659,31 @@ export default function Reports() {
       {shiftsInPeriod.length > 0 && (
         <Widget className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em]">Historial de turnos</p>
-            <span className="text-xs text-[#86868b]">{shiftsInPeriod.length} turno{shiftsInPeriod.length !== 1 ? 's' : ''}</span>
+            <SectionLabel>Historial de turnos</SectionLabel>
+            <span className="text-xs text-[#86868b] -mt-4">{shiftsInPeriod.length} turno{shiftsInPeriod.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-[#86868b] border-b border-black/5">
-                  <th className="pb-2 text-left font-medium">Cajero</th>
-                  <th className="pb-2 text-left font-medium">Inicio</th>
-                  <th className="pb-2 text-left font-medium">Fin</th>
-                  <th className="pb-2 text-right font-medium">Ventas</th>
-                  <th className="pb-2 text-right font-medium">Recaudado</th>
-                  <th className="pb-2 text-right font-medium">Efectivo</th>
-                  <th className="pb-2 text-right font-medium">Digital</th>
-                  <th className="pb-2 text-right font-medium">Diferencia</th>
+                  {['Cajero','Inicio','Fin','Ventas','Recaudado','Efectivo','Digital','Diferencia'].map(h => (
+                    <th key={h} className={`pb-2 font-medium ${h === 'Cajero' || h === 'Inicio' || h === 'Fin' ? 'text-left' : 'text-right'}`}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5">
                 {shiftsInPeriod.map(shift => {
-                  const durMin = shift.fin && shift.inicio
-                    ? Math.round((new Date(shift.fin) - new Date(shift.inicio)) / 60000) : null
-                  const durLabel = durMin !== null
-                    ? durMin >= 60 ? `${Math.floor(durMin / 60)}h ${durMin % 60}m` : `${durMin}m` : '—'
+                  const durMin = shift.fin && shift.inicio ? Math.round((new Date(shift.fin) - new Date(shift.inicio)) / 60000) : null
+                  const durLabel = durMin !== null ? durMin >= 60 ? `${Math.floor(durMin/60)}h ${durMin%60}m` : `${durMin}m` : '—'
                   return (
                     <tr key={shift.id}>
                       <td className="py-2.5 font-medium text-[#1d1d1f]">
-                        {shift.cajero}
-                        <span className="ml-1.5 text-xs text-[#86868b] font-normal">{durLabel}</span>
+                        {shift.cajero} <span className="text-xs text-[#86868b] font-normal">{durLabel}</span>
                       </td>
                       <td className="py-2.5 text-xs text-[#86868b]">{formatDateTimeART(shift.inicio)}</td>
                       <td className="py-2.5 text-xs text-[#86868b]">{formatDateTimeART(shift.fin)}</td>
-                      <td className="py-2.5 text-right text-[#1d1d1f]">{shift.total_ventas}</td>
-                      <td className="py-2.5 text-right font-semibold text-[#1d1d1f]">{fmtMoney(shift.total_recaudado)}</td>
+                      <td className="py-2.5 text-right">{shift.total_ventas}</td>
+                      <td className="py-2.5 text-right font-semibold">{fmtMoney(shift.total_recaudado)}</td>
                       <td className="py-2.5 text-right text-[#34c759]">{fmtMoney(shift.total_efectivo)}</td>
                       <td className="py-2.5 text-right text-[#007AFF]">{fmtMoney(shift.total_digital)}</td>
                       <td className={`py-2.5 text-right font-semibold ${shift.diferencia >= 0 ? 'text-[#34c759]' : 'text-[#ff3b30]'}`}>
@@ -541,24 +701,18 @@ export default function Reports() {
       {/* ── ANÁLISIS IA ─────────────────────────────────────────── */}
       <div ref={insightsRef}>
         <Widget className="p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs text-[#86868b] font-medium uppercase tracking-[0.2em]">Análisis inteligente</p>
-              <p className="text-xs text-[#86868b] mt-0.5">Generado con Gemini · Google AI</p>
+              <SectionLabel>Asesor financiero IA</SectionLabel>
+              <p className="text-xs text-[#86868b] -mt-3">Diagnóstico, alertas y plan de acción · Gemini 2.5</p>
             </div>
-            <button
-              onClick={handleGenerateInsights}
-              disabled={loadingInsights}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#007AFF] text-white text-sm font-medium hover:bg-[#0071e3] transition-colors disabled:opacity-50"
-            >
+            <button onClick={handleGenerateInsights} disabled={loadingInsights}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#007AFF] text-white text-sm font-medium hover:bg-[#0071e3] transition-colors disabled:opacity-50">
               {loadingInsights ? (
-                <>
-                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                  Analizando…
-                </>
+                <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>Analizando…</>
               ) : 'Analizar período'}
             </button>
           </div>
@@ -566,26 +720,44 @@ export default function Reports() {
           <AnimatePresence mode="wait">
             {!insights && !loadingInsights && (
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="bg-black/3 rounded-xl p-5 text-center">
-                <p className="text-sm text-[#86868b]">Seleccioná el período y tocá "Analizar" para obtener un resumen ejecutivo con recomendaciones.</p>
+                className="bg-black/3 rounded-xl p-6 text-center">
+                <p className="text-sm text-[#86868b]">Hacé clic en "Analizar período" para obtener un diagnóstico financiero completo con predicciones y plan de acción.</p>
               </motion.div>
             )}
             {loadingInsights && (
               <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="bg-black/3 rounded-xl p-8 text-center">
-                <p className="text-sm text-[#86868b]">Procesando datos del período…</p>
+                <p className="text-sm text-[#86868b] animate-pulse">Analizando datos del período…</p>
               </motion.div>
             )}
             {insights && (
-              <motion.div key="result" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                <div className="bg-[#f0f7ff] border border-[#007AFF]/10 rounded-xl p-4">
-                  <p className="text-xs text-[#007AFF] font-medium mb-1">Resumen ejecutivo</p>
-                  <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.resumen}</p>
+              <motion.div key="result" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-3 md:grid-cols-2">
+                <div className="bg-[#f0f7ff] border border-[#007AFF]/10 rounded-xl p-4 md:col-span-2">
+                  <p className="text-xs text-[#007AFF] font-semibold mb-1">Diagnóstico del período</p>
+                  <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.diagnostico}</p>
                 </div>
-                {insights.accion && (
+                {insights.alerta && (
+                  <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4">
+                    <p className="text-xs text-amber-600 font-semibold mb-1">Alerta prioritaria</p>
+                    <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.alerta}</p>
+                  </div>
+                )}
+                {insights.oportunidad && (
                   <div className="bg-[#f0fff4] border border-[#34c759]/15 rounded-xl p-4">
-                    <p className="text-xs text-[#34c759] font-medium mb-1">Acción recomendada</p>
-                    <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.accion}</p>
+                    <p className="text-xs text-[#34c759] font-semibold mb-1">Mayor oportunidad</p>
+                    <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.oportunidad}</p>
+                  </div>
+                )}
+                {insights.accion_semana && (
+                  <div className="bg-[#f5f0ff] border border-[#af52de]/15 rounded-xl p-4">
+                    <p className="text-xs text-[#af52de] font-semibold mb-1">Acción esta semana</p>
+                    <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.accion_semana}</p>
+                  </div>
+                )}
+                {insights.prediccion && (
+                  <div className="bg-black/3 border border-black/5 rounded-xl p-4">
+                    <p className="text-xs text-[#86868b] font-semibold mb-1">Predicción próximo período</p>
+                    <p className="text-sm text-[#1d1d1f] leading-relaxed">{insights.prediccion}</p>
                   </div>
                 )}
               </motion.div>
@@ -593,6 +765,22 @@ export default function Reports() {
           </AnimatePresence>
         </Widget>
       </div>
+
+      {/* ── STOCK CRÍTICO (al final) ─────────────────────────────── */}
+      {criticalStock.length > 0 && (
+        <Widget className="p-5">
+          <SectionLabel>Stock crítico — menos de 14 días de existencia</SectionLabel>
+          <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-4">
+            {criticalStock.map(p => (
+              <div key={p.id} className="bg-[#fff2f2] border border-[#ff3b30]/10 rounded-xl p-3">
+                <p className="text-sm font-medium text-[#1d1d1f]">{p.name}</p>
+                <p className="text-sm font-semibold text-[#ff3b30] mt-0.5">{p.daysLeft} días</p>
+                <p className="text-xs text-[#86868b] mt-0.5">Stock: {p.current_stock} · {p.dailySold} uds/día</p>
+              </div>
+            ))}
+          </div>
+        </Widget>
+      )}
 
     </div>
   )
