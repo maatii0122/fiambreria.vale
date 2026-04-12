@@ -227,18 +227,20 @@ export default function Reports() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: fullPrompt }] }],
-            generationConfig: { maxOutputTokens: 900, temperature: 0.3 },
+            generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
+          thinkingConfig: { thinkingBudget: 0 },
           }),
         }
       )
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`)
       const parts = json.candidates?.[0]?.content?.parts || []
-      const text = parts.filter(p => !p.thought).map(p => p.text || '').join('')
-      const stripped = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim()
-      const match = stripped.match(/\{[\s\S]*\}/)
-      if (!match) throw new Error(`Respuesta inesperada: ${text.slice(0, 150)}`)
-      setInsights(JSON.parse(match[0]))
+      const text = parts.map(p => p.text || '').join('')
+      const stripped = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '')
+      const start = stripped.indexOf('{')
+      const end = stripped.lastIndexOf('}')
+      if (start === -1 || end === -1) throw new Error(`Respuesta inesperada: ${text.slice(0, 150)}`)
+      setInsights(JSON.parse(stripped.slice(start, end + 1)))
       setTimeout(() => insightsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
       console.error(err)
