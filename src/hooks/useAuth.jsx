@@ -26,6 +26,11 @@ function getCached(userId) {
         storage.removeItem(ROLE_CACHE_KEY)
         continue
       }
+      // If cache was saved before storeId was added, invalidate it so we re-fetch
+      if (!('storeId' in parsed)) {
+        storage.removeItem(ROLE_CACHE_KEY)
+        continue
+      }
       return parsed
     } catch {}
   }
