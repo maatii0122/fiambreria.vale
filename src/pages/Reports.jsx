@@ -220,34 +220,26 @@ export default function Reports() {
     try {
       const periodLabel = periodMode === 'week' ? 'esta semana' : `${MONTHS[customMonth]} ${customYear}`
       const prompt = `Analizá estos datos del período "${periodLabel}":\n- Ingresos: $${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior, ${yearDelta >= 0 ? '+' : ''}${yearDelta}% vs mismo mes año pasado)\n- Ganancia bruta: $${Math.round(totalProfit)} (margen ${marginPct}%)\n- Gastos: $${Math.round(totalExpenses)}\n- Utilidad neta: $${Math.round(netProfit)}\n- Proyección de cierre mensual: $${Math.round(projected)} (día ${daysElapsed} de ${daysInMonth})\n- Promedio diario de ventas: $${Math.round(dailyAvg)}\n- Productos críticos de stock (<14 días): ${criticalStock.slice(0, 5).map(p => p.name).join(', ') || 'ninguno'}\n- Top 5 más vendidos: ${rotacion.slice(0, 5).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}\n- Rendimiento por cajero: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas, $${Math.round(c.total)}`).join(' | ') || 'sin datos'}\n- Turnos del período: ${shiftsInPeriod.length}\n\nRespondé ÚNICAMENTE con un JSON válido con campos "prediccion", "alertas", "recomendaciones" y "oportunidad".`
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          system_instruction: { parts: [{ text: 'Sos un contador y asesor de negocios experto en comercios minoristas de Argentina (fiambrerías y kioscos).' }] },
+          system_instruction: { parts: [{ text: 'Sos un contador y asesor de negocios experto en comercios minoristas de Argentina (fiambrerías y kioscos). Respondé siempre con JSON válido.' }] },
           generationConfig: {
-            maxOutputTokens: 900, temperature: 0.3,
+            maxOutputTokens: 900,
+            temperature: 0.3,
             responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'object',
-              properties: {
-                prediccion: { type: 'string' },
-                alertas: { type: 'array', items: { type: 'string' } },
-                recomendaciones: { type: 'array', items: { type: 'string' } },
-                oportunidad: { type: 'string' },
-              },
-              required: ['prediccion', 'alertas', 'recomendaciones', 'oportunidad'],
-            },
           },
         }),
       })
-      if (!res.ok) throw new Error(await res.text() || 'Error de API')
-      const json = await res.json()
+      const bodyText = await res.text()
+      if (!res.ok) throw new Error(bodyText || `HTTP ${res.status}`)
+      const json = JSON.parse(bodyText)
       const text = json.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || ''
       const match = text.match(/\{[\s\S]*\}/)
-      if (!match) throw new Error('Respuesta inválida')
+      if (!match) throw new Error(`Sin JSON en respuesta: ${text.slice(0, 200)}`)
       setInsights(JSON.parse(match[0]))
       setTimeout(() => insightsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
