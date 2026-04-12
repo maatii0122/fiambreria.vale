@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { formatDateTimeART, fmtMoney } from '@/components/argentina'
 import { useAuth } from '@/hooks/useAuth'
+import { useStoreFilter } from '@/hooks/useStoreFilter'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const STATUS_LABEL = { pendiente: 'Pendiente', pagado: 'Pagado' }
@@ -16,16 +17,18 @@ export default function Fiados() {
   const queryClient = useQueryClient()
   const { user, role, storeId } = useAuth()
   const isAdmin = role === 'admin'
+  const { stores, selectedStoreId, setSelectedStoreId } = useStoreFilter()
+  const effectiveStoreId = selectedStoreId || (isAdmin ? null : storeId)
   const [filter, setFilter] = useState('pendiente')
   const [expandedId, setExpandedId] = useState(null)
   const [payModal, setPayModal] = useState(null)
   const [payMethod, setPayMethod] = useState('efectivo')
 
   const { data: fiados = [], isLoading } = useQuery({
-    queryKey: ['fiados', storeId],
+    queryKey: ['fiados', effectiveStoreId],
     queryFn: async () => {
       let q = supabase.from('fiados').select('*').order('created_at', { ascending: false })
-      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      if (effectiveStoreId) q = q.eq('store_id', effectiveStoreId)
       const { data, error } = await q
       if (error) throw error
       return data || []
@@ -73,6 +76,18 @@ export default function Fiados() {
           <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Crédito</p>
           <h1 className="text-3xl font-bold">Fiados</h1>
         </div>
+        {isAdmin && (
+          <select
+            value={selectedStoreId || ''}
+            onChange={e => setSelectedStoreId(e.target.value || null)}
+            className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+          >
+            <option value="">Todos los negocios</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
       </header>
 
       {/* Summary */}
