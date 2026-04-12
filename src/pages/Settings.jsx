@@ -22,35 +22,16 @@ export default function Settings() {
   const [exporting, setExporting] = useState(false)
   const [profiles, setProfiles] = useState([])
 
-  const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+  const { data: counts = { products: 0, sales: 0, purchases: 0, expenses: 0 } } = useQuery({
+    queryKey: ['settings-counts'],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*')
-      return data || []
-    },
-    enabled: !!user,
-  })
-  const { data: sales = [] } = useQuery({
-    queryKey: ['sales'],
-    queryFn: async () => {
-      const { data } = await supabase.from('sales').select('*')
-      return data || []
-    },
-    enabled: !!user,
-  })
-  const { data: purchases = [] } = useQuery({
-    queryKey: ['purchases'],
-    queryFn: async () => {
-      const { data } = await supabase.from('purchases').select('*')
-      return data || []
-    },
-    enabled: !!user,
-  })
-  const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses'],
-    queryFn: async () => {
-      const { data } = await supabase.from('expenses').select('*')
-      return data || []
+      const [p, s, pu, e] = await Promise.all([
+        supabase.from('products').select('*', { count: 'exact', head: true }),
+        supabase.from('sales').select('*', { count: 'exact', head: true }),
+        supabase.from('purchases').select('*', { count: 'exact', head: true }),
+        supabase.from('expenses').select('*', { count: 'exact', head: true }),
+      ])
+      return { products: p.count || 0, sales: s.count || 0, purchases: pu.count || 0, expenses: e.count || 0 }
     },
     enabled: !!user,
   })
@@ -97,9 +78,28 @@ export default function Settings() {
     loadProfiles()
   }
 
+  const fetchAll = async (table, order = 'created_at') => {
+    const PAGE = 1000
+    let rows = [], from = 0
+    while (true) {
+      const { data, error } = await supabase.from(table).select('*').order(order).range(from, from + PAGE - 1)
+      if (error) throw error
+      rows = rows.concat(data || [])
+      if (!data || data.length < PAGE) break
+      from += PAGE
+    }
+    return rows
+  }
+
   const handleExport = async () => {
     setExporting(true)
     try {
+      const [products, sales, purchases, expenses] = await Promise.all([
+        fetchAll('products', 'name'),
+        fetchAll('sales', 'created_at'),
+        fetchAll('purchases', 'created_at'),
+        fetchAll('expenses', 'date'),
+      ])
       const now = new Date()
       const fecha = now.toLocaleDateString('es-AR')
       const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -117,7 +117,7 @@ export default function Settings() {
           })),
           columns: SALE_COLUMNS,
           sheetName: 'Ventas',
-          opts: { title: `Ventas — ${fecha}`, totals: { total: sales.reduce((sum, sale) => sum + (sale.total || 0), 0) } },
+          opts: { title: `Ventas — ${fecha}`, totals: { total: sales.reduce((sum, s) => sum + (s.total || 0), 0) } },
         },
         {
           data: purchases.map(p => ({
@@ -126,13 +126,13 @@ export default function Settings() {
           })),
           columns: PURCHASE_COLUMNS,
           sheetName: 'Compras',
-          opts: { title: `Compras — ${fecha}`, totals: { total: purchases.reduce((sum, purchase) => sum + (purchase.total || 0), 0) } },
+          opts: { title: `Compras — ${fecha}`, totals: { total: purchases.reduce((sum, p) => sum + (p.total || 0), 0) } },
         },
         {
           data: expenses,
           columns: EXPENSE_COLUMNS,
           sheetName: 'Gastos',
-          opts: { title: `Gastos — ${fecha}`, totals: { amount: expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0) } },
+          opts: { title: `Gastos — ${fecha}`, totals: { amount: expenses.reduce((sum, e) => sum + (e.amount || 0), 0) } },
         },
       ], `backup_vale_${ts}`)
       toast.success('Backup descargado correctamente')
@@ -174,7 +174,7 @@ export default function Settings() {
     loadProfiles()
   }
 
-  const totalRecords = products.length + sales.length + purchases.length + expenses.length
+  const totalRecords = counts.products + counts.sales + counts.purchases + counts.expenses
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -246,10 +246,10 @@ export default function Settings() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Database className="w-4 h-4" /> Resumen de la base</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[{ label: 'Productos', count: products.length, color: 'bg-zinc-50 text-blue-700' },
-            { label: 'Ventas', count: sales.length, color: 'bg-zinc-50 text-blue-700' },
-            { label: 'Compras', count: purchases.length, color: 'bg-purple-50 text-purple-700' },
-            { label: 'Gastos', count: expenses.length, color: 'bg-amber-50 text-amber-700' }].map(({ label, count, color }) => (
+          {[{ label: 'Productos', count: counts.products, color: 'bg-zinc-50 text-blue-700' },
+            { label: 'Ventas', count: counts.sales, color: 'bg-zinc-50 text-blue-700' },
+            { label: 'Compras', count: counts.purchases, color: 'bg-purple-50 text-purple-700' },
+            { label: 'Gastos', count: counts.expenses, color: 'bg-amber-50 text-amber-700' }].map(({ label, count, color }) => (
             <div key={label} className={`${color} rounded-xl p-3 text-center`}>
               <div className="text-xl font-bold">{count}</div>
               <div className="text-xs mt-1">{label}</div>
