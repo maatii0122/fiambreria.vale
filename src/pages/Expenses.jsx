@@ -5,6 +5,7 @@ import { exportToXlsx, EXPENSE_COLUMNS } from '@/lib/xlsxUtils'
 import { formatDateOnlyART, fmtMoney } from '@/components/argentina'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { useStoreGuard } from '@/hooks/useStoreGuard.jsx'
 
 const EXPENSE_CATEGORIES = [
   'Luz','Gas','Agua','Sueldos','Alquiler','Mantenimiento','Telefonía','Internet','Impuestos','Mercadería','Otros'
@@ -28,6 +29,7 @@ export default function Expenses() {
   const queryClient = useQueryClient()
   const { user, role, storeId } = useAuth()
   const isAdmin = role === 'admin'
+  const { guard, PickerModal } = useStoreGuard()
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses', storeId],
@@ -145,9 +147,11 @@ export default function Expenses() {
   }
 
   const openNewModal = () => {
-    setEditing(null)
-    setForm(initialForm())
-    setShowModal(true)
+    guard(() => {
+      setEditing(null)
+      setForm(initialForm())
+      setShowModal(true)
+    })
   }
 
   return (
@@ -342,6 +346,7 @@ export default function Expenses() {
           </div>
         </div>
       )}
+      {PickerModal}
     </div>
   )
 }

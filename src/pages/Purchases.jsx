@@ -6,6 +6,7 @@ import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { exportToXlsx, importFromXlsx, PURCHASE_COLUMNS, PURCHASE_IMPORT_COLUMNS } from '@/lib/xlsxUtils'
 import { useAuth } from '@/hooks/useAuth'
 import { useStoreFilter } from '@/hooks/useStoreFilter'
+import { useStoreGuard } from '@/hooks/useStoreGuard.jsx'
 
 const SAMPLE_ITEMS = [
   {
@@ -25,6 +26,7 @@ export default function Purchases() {
   const isAdmin = role === 'admin'
   const { stores, selectedStoreId, setSelectedStoreId } = useStoreFilter()
   const effectiveStoreId = selectedStoreId || (isAdmin ? null : storeId)
+  const { guard, PickerModal } = useStoreGuard()
   const barcodeRef = useRef(null)
   const { data: purchases = [], isLoading } = useQuery({
     queryKey: ['purchases', effectiveStoreId],
@@ -269,7 +271,7 @@ export default function Purchases() {
         <button onClick={handleExport} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold">
           Exportar Excel
         </button>
-        <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
+        <button onClick={() => guard(() => setShowModal(true))} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
           Nueva compra
         </button>
       </div>
@@ -460,6 +462,7 @@ export default function Purchases() {
           </div>
         </div>
       )}
+      {PickerModal}
     </div>
   )
 }

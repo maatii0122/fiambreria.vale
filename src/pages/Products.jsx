@@ -8,6 +8,7 @@ import { PencilLine, Trash2 } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
 import { useStoreFilter } from '@/hooks/useStoreFilter'
+import { useStoreGuard } from '@/hooks/useStoreGuard.jsx'
 
 const INITIAL_FORM = {
   barcode: '', name: '', category: 'Otros', unit: 'unidad',
@@ -40,6 +41,7 @@ export default function Products() {
   const isAdmin = role === 'admin'
   const { stores, selectedStoreId, setSelectedStoreId } = useStoreFilter()
   const effectiveStoreId = selectedStoreId || storeId
+  const { guard, PickerModal } = useStoreGuard()
   const fileInputRef = useRef(null)
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products', effectiveStoreId],
@@ -301,7 +303,7 @@ export default function Products() {
             Exportar Excel
           </button>
           <button
-            onClick={() => openModal()}
+            onClick={() => guard(() => openModal())}
             className="px-4 py-2 rounded-full bg-emerald-600 text-white text-sm font-semibold"
           >
             Nuevo producto
@@ -539,6 +541,7 @@ export default function Products() {
           </form>
         </div>
       )}
+      {PickerModal}
     </div>
   )
 }
