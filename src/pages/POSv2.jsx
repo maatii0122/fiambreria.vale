@@ -257,9 +257,9 @@ export default function POSv2() {
   const realCashNumber = parseFloat(realCashCount) || 0
   const cashDiff = realCashCount ? realCashNumber - expectedCash : 0
 
-  const handleConfirmCierre = () => {
+  const handleConfirmCierre = async () => {
     if (!realCashCount) { toast.error('Ingresá el conteo real'); return }
-    setClosingSummary({
+    const summary = {
       salesCount: turnoSales.length,
       total: turnoSales.reduce((sum, s) => sum + (s.total || 0), 0),
       efectivo: efectivoTotal,
@@ -268,7 +268,27 @@ export default function POSv2() {
       realCash: realCashNumber,
       diff: cashDiff,
       observations,
-    })
+    }
+    // Save shift log to DB (non-blocking — UI won't hang if it fails)
+    try {
+      await supabase.from('shift_logs').insert({
+        cajero: turno.cajero,
+        inicio: turno.inicio,
+        fin: new Date().toISOString(),
+        monto_inicial: turno.montoInicial,
+        monto_esperado: expectedCash,
+        monto_real: realCashNumber,
+        diferencia: cashDiff,
+        total_ventas: summary.salesCount,
+        total_recaudado: summary.total,
+        total_efectivo: efectivoTotal,
+        total_digital: otherPayments,
+        observaciones: observations,
+      })
+    } catch (err) {
+      console.error('Error guardando turno:', err)
+    }
+    setClosingSummary(summary)
     setScreen('resumen')
   }
 
