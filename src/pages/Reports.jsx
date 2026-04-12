@@ -222,12 +222,9 @@ export default function Reports() {
       const periodLabel = periodMode === 'week' ? 'esta semana' : `${MONTHS[customMonth]} ${customYear}`
       const prompt = `Analizá estos datos del período "${periodLabel}":\n- Ingresos: $${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior, ${yearDelta >= 0 ? '+' : ''}${yearDelta}% vs mismo mes año pasado)\n- Ganancia bruta: $${Math.round(totalProfit)} (margen ${marginPct}%)\n- Gastos: $${Math.round(totalExpenses)}\n- Utilidad neta: $${Math.round(netProfit)}\n- Proyección de cierre mensual: $${Math.round(projected)} (día ${daysElapsed} de ${daysInMonth})\n- Promedio diario de ventas: $${Math.round(dailyAvg)}\n- Productos críticos de stock (<14 días): ${criticalStock.slice(0, 5).map(p => p.name).join(', ') || 'ninguno'}\n- Top 5 más vendidos: ${rotacion.slice(0, 5).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}\n- Rendimiento por cajero: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas, $${Math.round(c.total)}`).join(' | ') || 'sin datos'}\n- Turnos del período: ${shiftsInPeriod.length}\n\nRespondé ÚNICAMENTE con un JSON válido con campos "prediccion", "alertas", "recomendaciones" y "oportunidad".`
       const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        systemInstruction: 'Sos un contador y asesor de negocios experto en comercios minoristas de Argentina (fiambrerías y kioscos). Respondé siempre con JSON válido.',
-      })
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: `Sos un contador experto en comercios minoristas de Argentina. ${prompt}` }] }],
         generationConfig: { maxOutputTokens: 900, temperature: 0.3 },
       })
       const text = result.response.text()
