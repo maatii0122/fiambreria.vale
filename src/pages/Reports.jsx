@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -211,30 +210,41 @@ export default function Reports() {
   }, [storeFilter, stores])
 
   const handleGenerateInsights = async () => {
-    const apiKey = import.meta.env.VITE_GOOGLE_AI_STUDIO_API_KEY
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
     if (!apiKey) {
-      toast.error('Configurá VITE_GOOGLE_AI_STUDIO_API_KEY en Vercel')
+      toast.error('Configurá VITE_ANTHROPIC_API_KEY en Vercel')
       return
     }
     setLoadingInsights(true)
     setInsights(null)
     try {
       const periodLabel = periodMode === 'week' ? 'esta semana' : `${MONTHS[customMonth]} ${customYear}`
-      const prompt = `Analizá estos datos del período "${periodLabel}":\n- Ingresos: $${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior, ${yearDelta >= 0 ? '+' : ''}${yearDelta}% vs mismo mes año pasado)\n- Ganancia bruta: $${Math.round(totalProfit)} (margen ${marginPct}%)\n- Gastos: $${Math.round(totalExpenses)}\n- Utilidad neta: $${Math.round(netProfit)}\n- Proyección de cierre mensual: $${Math.round(projected)} (día ${daysElapsed} de ${daysInMonth})\n- Promedio diario de ventas: $${Math.round(dailyAvg)}\n- Productos críticos de stock (<14 días): ${criticalStock.slice(0, 5).map(p => p.name).join(', ') || 'ninguno'}\n- Top 5 más vendidos: ${rotacion.slice(0, 5).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}\n- Rendimiento por cajero: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas, $${Math.round(c.total)}`).join(' | ') || 'sin datos'}\n- Turnos del período: ${shiftsInPeriod.length}\n\nRespondé ÚNICAMENTE con un JSON válido con campos "prediccion", "alertas", "recomendaciones" y "oportunidad".`
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: `Sos un contador experto en comercios minoristas de Argentina. ${prompt}` }] }],
-        generationConfig: { maxOutputTokens: 900, temperature: 0.3 },
+      const prompt = `Analizá estos datos del período "${periodLabel}":\n- Ingresos: $${Math.round(totalRevenue)} (${revDelta >= 0 ? '+' : ''}${revDelta}% vs período anterior, ${yearDelta >= 0 ? '+' : ''}${yearDelta}% vs mismo mes año pasado)\n- Ganancia bruta: $${Math.round(totalProfit)} (margen ${marginPct}%)\n- Gastos: $${Math.round(totalExpenses)}\n- Utilidad neta: $${Math.round(netProfit)}\n- Proyección de cierre mensual: $${Math.round(projected)} (día ${daysElapsed} de ${daysInMonth})\n- Promedio diario de ventas: $${Math.round(dailyAvg)}\n- Productos críticos de stock (<14 días): ${criticalStock.slice(0, 5).map(p => p.name).join(', ') || 'ninguno'}\n- Top 5 más vendidos: ${rotacion.slice(0, 5).map(p => `${p.product_name} (${p.totalUnits} uds)`).join(', ') || 'sin datos'}\n- Rendimiento por cajero: ${cajeroStats.map(c => `${c.name}: ${c.count} ventas, $${Math.round(c.total)}`).join(' | ') || 'sin datos'}\n- Turnos del período: ${shiftsInPeriod.length}\n\nRespondé ÚNICAMENTE con un JSON válido con los campos: "prediccion" (string), "alertas" (array de strings), "recomendaciones" (array de strings), "oportunidad" (string).`
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 900,
+          system: 'Sos un contador y asesor de negocios experto en comercios minoristas de Argentina (fiambrerías y kioscos). Respondé siempre con JSON válido, sin texto adicional.',
+          messages: [{ role: 'user', content: prompt }],
+        }),
       })
-      const text = result.response.text()
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`)
+      const text = json.content?.[0]?.text || ''
       const match = text.match(/\{[\s\S]*\}/)
-      if (!match) throw new Error(`Sin JSON en respuesta: ${text.slice(0, 200)}`)
+      if (!match) throw new Error(`Sin JSON en respuesta`)
       setInsights(JSON.parse(match[0]))
       setTimeout(() => insightsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
       console.error(err)
-      toast.error('Error generando análisis. Verificá la API key.')
+      toast.error(`Error: ${err.message}`)
     } finally {
       setLoadingInsights(false)
     }
