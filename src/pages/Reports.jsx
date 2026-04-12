@@ -233,8 +233,10 @@ export default function Reports() {
       )
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}`)
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      const match = text.match(/\{[\s\S]*\}/)
+      const parts = json.candidates?.[0]?.content?.parts || []
+      const text = parts.filter(p => !p.thought).map(p => p.text || '').join('')
+      const stripped = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim()
+      const match = stripped.match(/\{[\s\S]*\}/)
       if (!match) throw new Error(`Respuesta inesperada: ${text.slice(0, 150)}`)
       setInsights(JSON.parse(match[0]))
       setTimeout(() => insightsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
