@@ -39,9 +39,11 @@ export default function POSv2() {
   const [showMobileCart, setShowMobileCart] = useState(false)
 
   const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*').eq('active', true)
+      let q = supabase.from('products').select('*').eq('active', true)
+      if (storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
