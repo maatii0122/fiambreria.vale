@@ -20,29 +20,35 @@ const PAYMENT_BADGES = {
 const badgeClass = (method) => PAYMENT_BADGES[method] || 'bg-gray-100 text-gray-800'
 
 export default function Dashboard() {
-  const { user, role } = useAuth()
+  const { user, role, storeId, storeName } = useAuth()
   const isAdmin = role === 'admin'
 
   const { data: sales = [] } = useQuery({
-    queryKey: ['sales'],
+    queryKey: ['sales', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
+      let q = supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*')
+      let q = supabase.from('products').select('*')
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['expenses', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
+      let q = supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
+      if (storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user && isAdmin,
@@ -78,7 +84,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Fiambrerías Vale</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-gray-500">{storeName || 'Fiambrerías Vale'}</p>
           <h1 className="text-3xl font-bold">Panel de control</h1>
         </div>
       </header>

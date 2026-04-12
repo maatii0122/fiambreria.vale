@@ -20,11 +20,14 @@ const PaymentBadge = ({ method }) => {
 }
 
 export default function Sales() {
-  const { user } = useAuth()
+  const { user, role, storeId } = useAuth()
+  const isAdmin = role === 'admin'
   const { data: sales = [], isLoading } = useQuery({
-    queryKey: ['sales'],
+    queryKey: ['sales', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
+      let q = supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500)
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
