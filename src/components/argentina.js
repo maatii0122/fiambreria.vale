@@ -44,5 +44,7 @@ export const formatDateOnlyART = (dateStr) => {
   return `${d}/${m}/${y}`
 }
 
-export const fmtMoney = (n) =>
-  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(n || 0)
+export const fmtMoney = (n) => {
+  const formatted = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0)
+  return `$ ${formatted}`
+}
