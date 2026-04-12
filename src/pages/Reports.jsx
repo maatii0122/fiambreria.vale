@@ -227,8 +227,7 @@ export default function Reports() {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: fullPrompt }] }],
-            generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
-          thinkingConfig: { include_thoughts: false },
+            generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
           }),
         }
       )
