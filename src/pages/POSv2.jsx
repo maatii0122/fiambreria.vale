@@ -15,7 +15,7 @@ const STORAGE_KEY = 'fiambrerias-turno'
 
 export default function POSv2() {
   const queryClient = useQueryClient()
-  const { user, displayName } = useAuth()
+  const { user, displayName, storeId, storeName } = useAuth()
   const [screen, setScreen] = useState('apertura')
   const [turno, setTurno] = useState(null)
   const [montoInicial, setMontoInicial] = useState('')
@@ -161,6 +161,7 @@ export default function POSv2() {
         payment_method: method,
         cashier: turno.cajero,
         notes: customerName ? `Fiado: ${customerName}` : null,
+        ...(turno.storeId ? { store_id: turno.storeId } : {}),
       }).select().single()
       if (error) throw error
 
@@ -239,6 +240,8 @@ export default function POSv2() {
       cajero: displayName || user?.email || 'Cajero',
       montoInicial: parseFloat(montoInicial) || 0,
       inicio: nowART().toISOString(),
+      storeId: storeId || null,
+      storeName: storeName || null,
     }
     setTurno(newTurno)
     setScreen('pos')
@@ -284,6 +287,7 @@ export default function POSv2() {
         total_efectivo: efectivoTotal,
         total_digital: otherPayments,
         observaciones: observations,
+        ...(turno.storeId ? { store_id: turno.storeId } : {}),
       })
     } catch (err) {
       console.error('Error guardando turno:', err)
@@ -505,7 +509,10 @@ export default function POSv2() {
           </div>
           <div>
             <p className="text-sm font-semibold leading-tight">{turno?.cajero}</p>
-            <p className="text-xs text-zinc-300">{turnoSales.length} ventas · {fmtMoney(turnoSales.reduce((s, x) => s + (x.total || 0), 0))}</p>
+            <p className="text-xs text-zinc-300">
+              {turno?.storeName && <span className="mr-1 opacity-70">{turno.storeName} ·</span>}
+              {turnoSales.length} ventas · {fmtMoney(turnoSales.reduce((s, x) => s + (x.total || 0), 0))}
+            </p>
           </div>
         </div>
         <p className="font-mono text-sm text-zinc-200 hidden sm:block">{formatDateTimeART(liveTime)}</p>

@@ -19,8 +19,11 @@ const MONTHS = [
 
 export default function Reports() {
   const now = new Date()
-  const { user } = useAuth()
+  const { user, role, storeId } = useAuth()
+  const isAdmin = role === 'admin'
 
+  const [storeFilter, setStoreFilter] = useState('mine') // 'mine' | store uuid | 'all'
+  const [stores, setStores] = useState([])
   const [periodMode, setPeriodMode] = useState('month')
   const [customYear, setCustomYear] = useState(now.getFullYear())
   const [customMonth, setCustomMonth] = useState(now.getMonth())
@@ -33,34 +36,54 @@ export default function Reports() {
   const [loadingInsights, setLoadingInsights] = useState(false)
   const insightsRef = useRef(null)
 
+  // Load stores list for admin filter
+  useEffect(() => {
+    if (!isAdmin) return
+    supabase.from('stores').select('id, name, type').eq('active', true)
+      .then(({ data }) => { if (data) setStores(data) })
+  }, [isAdmin])
+
+  // Effective store filter for queries
+  const activeStoreId = isAdmin
+    ? (storeFilter === 'all' || storeFilter === 'mine' ? null : storeFilter)
+    : storeId
+
   const { data: sales = [] } = useQuery({
-    queryKey: ['sales'],
+    queryKey: ['sales', activeStoreId],
     queryFn: async () => {
-      const { data } = await supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(2000)
+      let q = supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(2000)
+      if (activeStoreId) q = q.eq('store_id', activeStoreId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['expenses', activeStoreId],
     queryFn: async () => {
-      const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(2000)
+      let q = supabase.from('expenses').select('*').order('date', { ascending: false }).limit(2000)
+      if (activeStoreId) q = q.eq('store_id', activeStoreId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', activeStoreId],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*')
+      let q = supabase.from('products').select('*')
+      if (activeStoreId) q = q.eq('store_id', activeStoreId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: shiftLogs = [] } = useQuery({
-    queryKey: ['shift_logs'],
+    queryKey: ['shift_logs', activeStoreId],
     queryFn: async () => {
-      const { data } = await supabase.from('shift_logs').select('*').order('created_at', { ascending: false }).limit(300)
+      let q = supabase.from('shift_logs').select('*').order('created_at', { ascending: false }).limit(300)
+      if (activeStoreId) q = q.eq('store_id', activeStoreId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
@@ -216,6 +239,21 @@ Respondé ÚNICAMENTE con un JSON válido, sin texto extra, con esta estructura 
           <p className="text-gray-500">Datos actualizados en tiempo real</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {isAdmin && stores.length > 0 && (
+            <div className="flex gap-1 bg-zinc-100 rounded-full p-1">
+              <button
+                onClick={() => setStoreFilter('all')}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${storeFilter === 'all' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}
+              >Ambas</button>
+              {stores.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setStoreFilter(s.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${storeFilter === s.id ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'}`}
+                >{s.name}</button>
+              ))}
+            </div>
+          )}
           <div className="flex gap-1">
             <button onClick={() => handleModeChange('week')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'week' ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Esta semana</button>
             <button onClick={() => handleModeChange('month')} className={`px-3 py-1 rounded-full text-sm font-semibold ${periodMode === 'month' ? 'bg-zinc-900 text-white' : 'bg-gray-100 text-gray-600'}`}>Este mes</button>

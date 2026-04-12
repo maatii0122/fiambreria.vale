@@ -26,13 +26,15 @@ const initialForm = () => ({
 
 export default function Expenses() {
   const queryClient = useQueryClient()
-  const { user, role } = useAuth()
+  const { user, role, storeId } = useAuth()
   const isAdmin = role === 'admin'
 
   const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['expenses', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
+      let q = supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500)
+      if (storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user && isAdmin,
@@ -115,6 +117,7 @@ export default function Expenses() {
     const payload = {
       ...form,
       amount: parseFloat(form.amount) || 0,
+      ...(storeId && !editingExp ? { store_id: storeId } : {}),
     }
     if (editingExp) {
       updateMutation.mutate({ id: editingExp.id, payload })

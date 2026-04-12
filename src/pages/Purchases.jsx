@@ -20,20 +20,25 @@ const SAMPLE_ITEMS = [
 
 export default function Purchases() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, role, storeId } = useAuth()
+  const isAdmin = role === 'admin'
   const barcodeRef = useRef(null)
   const { data: purchases = [], isLoading } = useQuery({
-    queryKey: ['purchases'],
+    queryKey: ['purchases', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('purchases').select('*').order('created_at', { ascending: false }).limit(200)
+      let q = supabase.from('purchases').select('*').order('created_at', { ascending: false }).limit(200)
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*').eq('active', true)
+      let q = supabase.from('products').select('*').eq('active', true)
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     enabled: !!user,
@@ -56,6 +61,7 @@ export default function Purchases() {
         invoice_number: invoiceNumber,
         items,
         total,
+        ...(storeId ? { store_id: storeId } : {}),
       }).select().single()
       if (purErr) throw purErr
 

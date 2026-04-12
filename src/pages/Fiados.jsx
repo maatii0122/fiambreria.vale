@@ -14,19 +14,19 @@ const STATUS_CLASS = {
 
 export default function Fiados() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, role, storeId } = useAuth()
+  const isAdmin = role === 'admin'
   const [filter, setFilter] = useState('pendiente')
   const [expandedId, setExpandedId] = useState(null)
-  const [payModal, setPayModal] = useState(null) // fiado object to mark as paid
+  const [payModal, setPayModal] = useState(null)
   const [payMethod, setPayMethod] = useState('efectivo')
 
   const { data: fiados = [], isLoading } = useQuery({
-    queryKey: ['fiados'],
+    queryKey: ['fiados', storeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('fiados')
-        .select('*')
-        .order('created_at', { ascending: false })
+      let q = supabase.from('fiados').select('*').order('created_at', { ascending: false })
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data, error } = await q
       if (error) throw error
       return data || []
     },

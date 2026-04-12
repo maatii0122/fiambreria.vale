@@ -32,11 +32,9 @@ function getCached(userId) {
   return null
 }
 
-function setCache(userId, role, displayName) {
+function setCache(userId, role, displayName, storeId = null, storeName = null) {
   const payload = JSON.stringify({
-    userId,
-    role,
-    displayName,
+    userId, role, displayName, storeId, storeName,
     expiresAt: Date.now() + CACHE_TTL_MS,
   })
   try { localStorage.setItem(ROLE_CACHE_KEY, payload) } catch {}
@@ -58,25 +56,32 @@ function emailToName(email) {
 
 async function resolveProfile(userId, email) {
   const cached = getCached(userId)
-  if (cached?.role) return { role: cached.role, displayName: cached.displayName || emailToName(email) }
+  if (cached?.role) return {
+    role: cached.role,
+    displayName: cached.displayName || emailToName(email),
+    storeId: cached.storeId || null,
+    storeName: cached.storeName || null,
+  }
 
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('role, username')
+      .select('role, username, store_id, stores(name, type)')
       .eq('id', userId)
       .single()
     if (!error && data?.role) {
       const displayName = data.username?.trim() || emailToName(email)
-      setCache(userId, data.role, displayName)
-      return { role: data.role, displayName }
+      const storeId = data.store_id || null
+      const storeName = data.stores?.name || null
+      setCache(userId, data.role, displayName, storeId, storeName)
+      return { role: data.role, displayName, storeId, storeName }
     }
   } catch {}
 
   const role = isAdminEmail(email) ? 'admin' : 'employee'
   const displayName = emailToName(email)
-  setCache(userId, role, displayName)
-  return { role, displayName }
+  setCache(userId, role, displayName, null, null)
+  return { role, displayName, storeId: null, storeName: null }
 }
 
 const AuthContext = createContext(null)
@@ -85,6 +90,8 @@ export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [displayName, setDisplayName] = useState('')
+  const [storeId, setStoreId] = useState(null)
+  const [storeName, setStoreName] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -99,6 +106,8 @@ export default function AuthProvider({ children }) {
           setUser(null)
           setRole(null)
           setDisplayName('')
+          setStoreId(null)
+          setStoreName(null)
           setLoading(false)
           return
         }
@@ -112,6 +121,8 @@ export default function AuthProvider({ children }) {
             if (cached?.role) {
               setRole(cached.role)
               setDisplayName(cached.displayName || emailToName(session.user.email))
+              setStoreId(cached.storeId || null)
+              setStoreName(cached.storeName || null)
               setLoading(false)
               return
             }
@@ -121,12 +132,16 @@ export default function AuthProvider({ children }) {
           if (mounted) {
             setRole(profile.role)
             setDisplayName(profile.displayName)
+            setStoreId(profile.storeId)
+            setStoreName(profile.storeName)
           }
         } else {
           clearCache()
           setUser(null)
           setRole(null)
           setDisplayName('')
+          setStoreId(null)
+          setStoreName(null)
         }
 
         if (mounted) setLoading(false)
@@ -151,8 +166,8 @@ export default function AuthProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({ user, role, displayName, loading, login, logout }),
-    [user, role, displayName, loading]
+    () => ({ user, role, displayName, storeId, storeName, loading, login, logout }),
+    [user, role, displayName, storeId, storeName, loading]
   )
 
   return (

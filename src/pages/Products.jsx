@@ -35,12 +35,15 @@ const daysUntil = (value) => {
 
 export default function Products() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, role, storeId } = useAuth()
+  const isAdmin = role === 'admin'
   const fileInputRef = useRef(null)
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', storeId],
     queryFn: async () => {
-      const { data } = await supabase.from('products').select('*').order('name')
+      let q = supabase.from('products').select('*').order('name')
+      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      const { data } = await q
       return data || []
     },
     staleTime: 1000 * 60,
@@ -170,6 +173,7 @@ export default function Products() {
       purchase_price: parseFloat(form.purchase_price) || 0,
       sale_price: parseFloat(form.sale_price) || 0,
       expiration_date: form.expiration_date || null,
+      ...(storeId && !editingProduct ? { store_id: storeId } : {}),
     }
 
     try {
