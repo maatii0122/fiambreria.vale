@@ -6,6 +6,7 @@ import { formatDateTimeART, fmtMoney, nowART } from '@/components/argentina'
 import { Loader2, Printer, Plus, Minus, X, ShoppingCart, Search, Clock } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
+import { useStoreFilter } from '@/hooks/useStoreFilter'
 import Receipt from '@/components/pos/Receipt'
 
 const PAYMENT_METHODS = ['efectivo', 'transferencia', 'qr', 'tarjeta', 'fiado']
@@ -16,6 +17,8 @@ const STORAGE_KEY = 'fiambrerias-turno'
 export default function POSv2() {
   const queryClient = useQueryClient()
   const { user, displayName, storeId, storeName } = useAuth()
+  const { stores, selectedStoreId, setSelectedStoreId, isAdmin } = useStoreFilter()
+  const effectiveStoreId = selectedStoreId || storeId
   const [screen, setScreen] = useState('apertura')
   const [turno, setTurno] = useState(null)
   const [montoInicial, setMontoInicial] = useState('')
@@ -39,10 +42,10 @@ export default function POSv2() {
   const [showMobileCart, setShowMobileCart] = useState(false)
 
   const { data: products = [] } = useQuery({
-    queryKey: ['products', storeId],
+    queryKey: ['products', effectiveStoreId],
     queryFn: async () => {
       let q = supabase.from('products').select('*').eq('active', true)
-      if (storeId) q = q.eq('store_id', storeId)
+      if (effectiveStoreId) q = q.eq('store_id', effectiveStoreId)
       const { data } = await q
       return data || []
     },
@@ -238,12 +241,14 @@ export default function POSv2() {
       toast.error('Ingresá el monto inicial en caja')
       return
     }
+    const activeStoreId = effectiveStoreId || null
+    const activeStoreName = stores.find(s => s.id === activeStoreId)?.name || storeName || null
     const newTurno = {
       cajero: displayName || user?.email || 'Cajero',
       montoInicial: parseFloat(montoInicial) || 0,
       inicio: nowART().toISOString(),
-      storeId: storeId || null,
-      storeName: storeName || null,
+      storeId: activeStoreId,
+      storeName: activeStoreName,
     }
     setTurno(newTurno)
     setScreen('pos')
@@ -331,6 +336,23 @@ export default function POSv2() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+            {isAdmin && stores.length > 1 && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Negocio
+                </label>
+                <select
+                  value={selectedStoreId || ''}
+                  onChange={e => setSelectedStoreId(e.target.value || null)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                >
+                  <option value="">Seleccioná un negocio</option>
+                  {stores.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 Monto en caja al iniciar

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { fmtMoney, formatDateOnlyART } from '@/components/argentina'
 import { exportToXlsx, importFromXlsx, PURCHASE_COLUMNS, PURCHASE_IMPORT_COLUMNS } from '@/lib/xlsxUtils'
 import { useAuth } from '@/hooks/useAuth'
+import { useStoreFilter } from '@/hooks/useStoreFilter'
 
 const SAMPLE_ITEMS = [
   {
@@ -22,22 +23,24 @@ export default function Purchases() {
   const queryClient = useQueryClient()
   const { user, role, storeId } = useAuth()
   const isAdmin = role === 'admin'
+  const { stores, selectedStoreId, setSelectedStoreId } = useStoreFilter()
+  const effectiveStoreId = selectedStoreId || (isAdmin ? null : storeId)
   const barcodeRef = useRef(null)
   const { data: purchases = [], isLoading } = useQuery({
-    queryKey: ['purchases', storeId],
+    queryKey: ['purchases', effectiveStoreId],
     queryFn: async () => {
       let q = supabase.from('purchases').select('*').order('created_at', { ascending: false }).limit(200)
-      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      if (effectiveStoreId) q = q.eq('store_id', effectiveStoreId)
       const { data } = await q
       return data || []
     },
     enabled: !!user,
   })
   const { data: products = [] } = useQuery({
-    queryKey: ['products', storeId],
+    queryKey: ['products', effectiveStoreId],
     queryFn: async () => {
       let q = supabase.from('products').select('*').eq('active', true)
-      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      if (effectiveStoreId) q = q.eq('store_id', effectiveStoreId)
       const { data } = await q
       return data || []
     },
@@ -56,12 +59,13 @@ export default function Purchases() {
       if (items.length === 0) throw new Error('Agregá al menos un producto')
       const total = items.reduce((s, i) => s + i.subtotal, 0)
 
+      const purchaseStoreId = effectiveStoreId || storeId || null
       const { data: purchase, error: purErr } = await supabase.from('purchases').insert({
         supplier,
         invoice_number: invoiceNumber,
         items,
         total,
-        ...(storeId ? { store_id: storeId } : {}),
+        ...(purchaseStoreId ? { store_id: purchaseStoreId } : {}),
       }).select().single()
       if (purErr) throw purErr
 
@@ -249,13 +253,25 @@ export default function Purchases() {
           <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Compras</p>
           <h1 className="text-3xl font-bold">Registro de compras y reposición de stock</h1>
         </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        {isAdmin && (
+          <select
+            value={selectedStoreId || ''}
+            onChange={e => setSelectedStoreId(e.target.value || null)}
+            className="border border-gray-200 rounded-full px-4 py-2 text-sm"
+          >
+            <option value="">Todos los negocios</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
         <button onClick={handleExport} className="px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold">
           Exportar Excel
-          </button>
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
-            Nueva compra
-          </button>
+        </button>
+        <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm font-semibold">
+          Nueva compra
+        </button>
       </div>
     </header>
 

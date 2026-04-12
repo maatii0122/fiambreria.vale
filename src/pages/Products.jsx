@@ -7,6 +7,7 @@ import { fmtMoney } from '@/components/argentina'
 import { PencilLine, Trash2 } from 'lucide-react'
 import { loadPromotions } from '@/lib/promotions'
 import { useAuth } from '@/hooks/useAuth'
+import { useStoreFilter } from '@/hooks/useStoreFilter'
 
 const INITIAL_FORM = {
   barcode: '', name: '', category: 'Otros', unit: 'unidad',
@@ -37,12 +38,14 @@ export default function Products() {
   const queryClient = useQueryClient()
   const { user, role, storeId } = useAuth()
   const isAdmin = role === 'admin'
+  const { stores, selectedStoreId, setSelectedStoreId } = useStoreFilter()
+  const effectiveStoreId = selectedStoreId || storeId
   const fileInputRef = useRef(null)
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', storeId],
+    queryKey: ['products', effectiveStoreId],
     queryFn: async () => {
       let q = supabase.from('products').select('*').order('name')
-      if (!isAdmin && storeId) q = q.eq('store_id', storeId)
+      if (effectiveStoreId) q = q.eq('store_id', effectiveStoreId)
       const { data } = await q
       return data || []
     },
@@ -157,8 +160,13 @@ export default function Products() {
 
     // Check if barcode collides with an active product (ignore inactive/deactivated ones)
     const barcodeNorm = form.barcode.trim()
+    const newStoreId = editingProduct ? editingProduct.store_id : (selectedStoreId || form.store_id || storeId || null)
+    const targetStore = newStoreId
     const collision = products.find(
-      p => p.active !== false && String(p.barcode).trim() === barcodeNorm && p.id !== editingProduct?.id
+      p => p.active !== false &&
+           String(p.barcode).trim() === barcodeNorm &&
+           p.id !== editingProduct?.id &&
+           p.store_id === targetStore
     )
     if (collision) {
       toast.error(`El código ${barcodeNorm} ya pertenece a "${collision.name}"`)
@@ -173,7 +181,7 @@ export default function Products() {
       purchase_price: parseFloat(form.purchase_price) || 0,
       sale_price: parseFloat(form.sale_price) || 0,
       expiration_date: form.expiration_date || null,
-      ...(storeId && !editingProduct ? { store_id: storeId } : {}),
+      ...(!editingProduct && newStoreId ? { store_id: newStoreId } : {}),
     }
 
     try {
@@ -211,9 +219,10 @@ export default function Products() {
         expiration_date: r.expiration_date || r.Date_vto || null,
         active: true,
         allow_negative_stock: true,
+        ...(storeId ? { store_id: storeId } : {}),
       }))
     if (!toCreate.length) { toast.error('No se encontraron filas válidas'); return }
-    const { error } = await supabase.from('products').upsert(toCreate, { onConflict: 'barcode' })
+    const { error } = await supabase.from('products').upsert(toCreate, { onConflict: 'store_id,barcode' })
     if (error) throw error
     queryClient.invalidateQueries({ queryKey: ['products'] })
     toast.success(`${toCreate.length} productos importados / actualizados`)
@@ -317,6 +326,18 @@ export default function Products() {
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
+        {isAdmin && (
+          <select
+            value={selectedStoreId || ''}
+            onChange={e => setSelectedStoreId(e.target.value || null)}
+            className="w-48 border border-gray-200 rounded-full px-4 py-2"
+          >
+            <option value="">Todos los negocios</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {promotionsWithDetails.length > 0 && (
@@ -416,6 +437,22 @@ export default function Products() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <form onSubmit={handleSave} className="bg-white rounded-2xl p-6 w-full max-w-lg space-y-4">
             <h2 className="text-xl font-semibold">{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h2>
+            {isAdmin && !editingProduct && !selectedStoreId && (
+              <label className="space-y-1 text-xs text-gray-500">
+                Negocio *
+                <select
+                  value={form.store_id || ''}
+                  onChange={e => setForm(prev => ({ ...prev, store_id: e.target.value || undefined }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2"
+                  required
+                >
+                  <option value="">Seleccioná un negocio</option>
+                  {stores.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-600 block">Código *</label>
